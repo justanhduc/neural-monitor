@@ -15,8 +15,19 @@ import atexit
 import logging
 from matplotlib import cm
 from imageio import imwrite
-from shutil import copyfile, copytree, ignore_patterns
-from collections import namedtuple
+from shutil import copyfile, copytree
+from collections import namedtuple, deque
+import functools
+
+from typing import (
+    List,
+    Union,
+    Tuple,
+    Optional,
+    Iterable,
+    Dict,
+    Any
+)
 
 try:
     import visdom
@@ -32,7 +43,7 @@ from . import utils
 from .utils import root_logger, log_formatter
 
 matplotlib.use('Agg')
-__all__ = ['Monitor', 'monitor', 'logger', 'track', 'get_tracked_variables', 'eval_tracked_variables', 'hooks']
+__all__ = ['monitor', 'logger', 'track', 'collect_tracked_variables', 'get_tracked_variables', 'hooks']
 _TRACKS = collections.OrderedDict()
 hooks = {}
 lock = utils.ReadWriteLock()
@@ -45,7 +56,7 @@ root_logger.addHandler(consoleHandler)
 logger = root_logger
 
 
-def track(name, x, direction=None):
+def track(name: str, x: Union[T.Tensor, T.nn.Module], direction: Optional[str] = None) -> Union[T.Tensor, T.nn.Module]:
     """
     An identity function that registers hooks to
     track the value and gradient of the specified tensor.
@@ -119,7 +130,7 @@ def track(name, x, direction=None):
     return x
 
 
-def get_tracked_variables(name=None, return_name=False):
+def collect_tracked_variables(name=None, return_name=False):
     """
     Gets tracked variable given name.
 
@@ -146,7 +157,7 @@ def get_tracked_variables(name=None, return_name=False):
         return tracked
 
 
-def eval_tracked_variables():
+def get_tracked_variables() -> Dict:
     """
     Retrieves the values of tracked variables.
 
@@ -154,7 +165,7 @@ def eval_tracked_variables():
         associated with the given names.
     """
 
-    name, vars = get_tracked_variables(return_name=True)
+    name, vars = collect_tracked_variables(return_name=True)
     dict = collections.OrderedDict()
     for n, v in zip(name, vars):
         if isinstance(v, (list, tuple)):
@@ -169,6 +180,7 @@ def _spawn_defaultdict_ordereddict():
 
 
 def check_path_init(f):
+    @functools.wraps(f)
     def set_default_path(self, *args, **kwargs):
         if not self._initialized:
             logger.info('Working folder not initialized! Initialize working folder to default.')
@@ -181,8 +193,11 @@ def check_path_init(f):
 
 
 def standardize_name(f):
+    @functools.wraps(f)
     def func(self, name: str, *args, **kwargs):
-        name = name.replace(' ', '-')
+        if name is not None:
+            name = name.replace(' ', '-')
+
         f(self, name, *args, **kwargs)
 
     return func
@@ -215,52 +230,10 @@ class Monitor:
                 mon.imwrite('input images', data['images'], latest_only=True)
         ...
 
-    Parameters
-    ----------
-    model_name : str
-        name of the model folder.
-        Default: ``None``.
-    root : str
-        path to store the collected statistics.
-        Default: ``None``.
-    current_folder : str
-        if given, all the stats will be loaded from the given folder.
-        Default: ``None``.
-    print_freq : int
-        statistics display frequency.
-        Unit is iteration.
-        Default: ``None``.
-    num_iters : int
-        number of iterations per epoch.
-        If specified, training iteration percentage will be displayed along with epoch.
-        Otherwise, it will be automatically calculated in the first epoch.
-        Default: 100.
-    prefix : str
-        predix for folder name of of each run.
-        Default: ``'run'``.
-    use_visdom : bool
-        whether to use Visdom for real-time monitoring.
-        Default: ``False``.
-    use_tensorboard : bool
-        whether to use Tensorboard for real-time monitoring.
-        Default: ``False``.
-    send_slack : bool
-        whether to send the statistics to Slack chatroom.
-        Default: ``False``.
-    with_git : bool
-        whether to retrieve git information.
-        Default: ``False``.
-    kwargs
-        some miscellaneous options for Visdom and other functions.
-
     Attributes
     ----------
-    path
-        contains all the runs of `model_name`.
     current_folder
         path to the current run.
-    vis
-        an instance of :mod:`Visdom` when `use_visdom` is set to ``True``.
     writer
         an instance of Tensorboard's :class:`SummaryWriter`
         when `use_tensorboard` is set to ``True``.
@@ -280,16 +253,32 @@ class Monitor:
     _end_iter_ = 'end_iter'
     _hparams = 'hparams'
     _hparam_metrics = 'hparam-metrics'
+    _log_file = 'log.pkl'
 
-    def __init__(self, model_name=None, root=None, current_folder=None, print_freq=100, num_iters=None,
-                 prefix='run', use_visdom=False, use_tensorboard=False, send_slack=False, with_git=False, **kwargs):
+    def __init__(self):
+        self.model_name = None
+        self.root = None
+        self.prefix = None
+        self._num_iters = None
+        self.print_freq = 1
+        self.num_iters = None
+        self.use_tensorboard = None
+        self.current_folder = None
+        self.plot_folder = None
+        self.file_folder = None
+        self.image_folder = None
+        self.hist_folder = None
+        self.current_run = None
+        self.writer = None
+        self.with_git = None
+        self.git = None
+
         self._iter = 0
         self._last_epoch = 0
         self._num_since_beginning = collections.defaultdict(_spawn_defaultdict_ordereddict)
         self._num_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
         self._hist_since_beginning = collections.defaultdict(_spawn_defaultdict_ordereddict)
         self._hist_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._mat_since_beginning = collections.defaultdict(_spawn_defaultdict_ordereddict)
         self._mat_since_last_flush = {}
         self._img_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
         self._points_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
@@ -306,43 +295,8 @@ class Monitor:
                            'torch_save': self._save_torch, 'pickle_load': self._load_pickle,
                            'txt_load': self._load_txt, 'torch_load': self._load_torch}
 
-        self.model_name = 'my-model' if model_name is None else model_name
-        self.root = root
-        self.prefix = prefix
-        self._num_iters = num_iters
-        self.print_freq = print_freq
-        self.num_iters = num_iters
-        self.use_tensorboard = use_tensorboard
-        self.use_visdom = use_visdom
-        self.current_folder = current_folder
-        self.kwargs = kwargs
-        self.plot_folder = None
-        self.file_folder = None
-        self.image_folder = None
-        self.hist_folder = None
-        self.current_run = None
-        self.writer = None
-        self.with_git = with_git
-
-        if with_git:
-            self.init_git()
-        else:
-            self.git = None
-
-        if current_folder is not None or model_name is not None:
-            self.initialize(current_folder)
-
-        self.vis = None
-        if use_visdom and visdom is not None:
-            self.init_visdom()
-
         self._q = queue.Queue()
         self._thread = threading.Thread(target=self._flush, daemon=True)
-        self._thread.start()
-
-        self.send_slack = send_slack
-        if send_slack:
-            self.init_slack()
 
         # schedule to flush when the program finishes
         atexit.register(self._atexit)
@@ -350,19 +304,51 @@ class Monitor:
     def __setattr__(self, attr, val):
         if self._initialized and attr in ('model_name', 'root', 'current_folder', 'plot_folder', 'file_folder',
                                           'image_folder', 'hist_folder', 'current_run', 'prefix'):
-            raise ValueError('{} attribute must not be set after {} is '
-                             'initialized'.format(attr, self.__class__.__name__))
+            raise ValueError(f'{attr} attribute must not be set after {self.__class__.__name__} is '
+                             'initialized')
 
         super().__setattr__(attr, val)
 
-    def initialize(self, path=None):
-        if path is None:
+    def initialize(self, model_name: Optional[str] = None, root: Optional[str] = None,
+                   current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
+                   num_iters: Optional[int] = None, prefix: Optional[str] = 'run',
+                   use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False) -> None:
+        """
+
+        :param model_name:
+        :param root:
+        :param current_folder:
+        :param print_freq:
+        :param num_iters:
+        :param prefix:
+        :param use_tensorboard:
+        :param with_git:
+        :return:
+        """
+        self.model_name = 'my-model' if model_name is None else model_name
+        self.root = root
+        self.prefix = prefix
+        self._num_iters = num_iters
+        self.print_freq = print_freq
+        self.num_iters = num_iters
+        self.use_tensorboard = use_tensorboard
+        self.current_folder = current_folder
+        self.with_git = with_git
+
+        if with_git:
+            self.init_git()
+        else:
+            self.git = None
+
+        if current_folder is None:
             root = 'results' if self.root is None else self.root
             path = os.path.join(root, self.model_name)
             os.makedirs(path, exist_ok=True)
             path = self._get_new_folder(path)
+            self.current_folder = os.path.normpath(path)
+        else:
+            self.current_folder = current_folder
 
-        self.current_folder = os.path.normpath(path)
         if os.path.exists(self.current_folder):
             lock.acquire_read()
             self.load_state()
@@ -383,21 +369,23 @@ class Monitor:
         self.hist_folder = os.path.join(self.current_folder, 'histograms')
         os.makedirs(self.hist_folder, exist_ok=True)
 
-        file_handler = logging.FileHandler('{0}/{1}.log'.format(self.file_folder, 'history'))
+        file_handler = logging.FileHandler(f'{self.file_folder}/history.log')
         file_handler.setFormatter(log_formatter)
         root_logger.addHandler(file_handler)
 
-        root_logger.info('Result folder: %s' % self.current_folder)
+        root_logger.info(f'Result folder: {self.current_folder}')
         self._initialized = True
 
         if self.use_tensorboard:
             self.init_tensorboard()
 
-    def load_state(self):
+        self._thread.start()
+
+    def load_state(self) -> None:
         self.current_run = os.path.basename(self.current_folder)
 
         try:
-            log = self.read_log('log.pkl')
+            log = self.read_log()
             try:
                 self.num_stats = log['num']
             except KeyError:
@@ -433,48 +421,35 @@ class Monitor:
                     root_logger.warning('No record found for `epoch`', exc_info=True)
 
         except FileNotFoundError:
-            root_logger.warning('`log.pkl` not found in `%s`' % os.path.join(self.current_folder, 'files'),
-                                exc_info=True)
+            root_logger.warning(f'`{self._log_file}` not found in `{self.file_folder}`', exc_info=True)
 
     def _get_new_folder(self, path):
         runs = [folder for folder in os.listdir(path) if folder.startswith(self.prefix)]
         if not runs:
             idx = 1
         else:
-            indices = sorted([int(r[len(self.prefix)+1:]) if r[len(self.prefix)+1:].isnumeric() else 0 for r in runs])
+            indices = sorted(
+                [int(r[len(self.prefix) + 1:]) if r[len(self.prefix) + 1:].isnumeric() else 0 for r in runs])
             idx = indices[-1] + 1
 
-        self.current_run = '{}-{}'.format(self.prefix, idx)
+        self.current_run = f'{self.prefix}-{idx}'
         return os.path.join(path, self.current_run)
 
-    def init_tensorboard(self):
+    def init_tensorboard(self) -> None:
         assert self._initialized, 'Working folder must be set by set_path first.'
+        if self.writer is not None:
+            logger.info('Tensorboard has already been initialized!')
+            return
+
         os.makedirs(os.path.join(self.current_folder, 'tensorboard'), exist_ok=True)
         self.writer = SummaryWriter(os.path.join(self.current_folder, 'tensorboard'))
         self.use_tensorboard = True
 
-    def init_visdom(self):
-        server = self.kwargs.pop('server', 'http://localhost')
-        port = self.kwargs.pop('port', 8097)
-        self.vis = visdom.Visdom(server=server, port=port)
-        if not self.vis.check_connection():
-            from subprocess import Popen, PIPE
-            Popen('visdom', stdout=PIPE, stderr=PIPE)
+    def init_git(self) -> None:
+        if self.git is not None:
+            logger.info('Git has already been integrated!')
+            return
 
-        self.vis.close()
-        print('You can navigate to \'%s:%d\' for visualization' % (server, port))
-        self.use_visdom = True
-
-    def init_slack(self):
-        assert self.kwargs.get('channel', None) is not None and self.kwargs.get('token', None) is not None, \
-            'channel and token must be provided to send a slack message'
-
-        if self.kwargs.get('username', None) is None:
-            self.kwargs['username'] = 'me'
-
-        self.send_slack = True
-
-    def init_git(self):
         import git
 
         try:
@@ -488,15 +463,15 @@ class Monitor:
         self.with_git = True if self.git is not None else False
 
     @check_path_init
-    def show_git_info(self):
+    def show_git_info(self) -> None:
         import datetime
 
         root_logger.info('Current branch: {}'.format(self.git.branch))
         root_logger.info('Latest commit id: {}'.format(self.git.commit_id))
-        root_logger.info('Latest commit message: {}'.format(self.git.commit_messhage))
+        root_logger.info('Latest commit message: {}'.format(self.git.commit_message))
         root_logger.info('Latest commit date: {}'.format(datetime.datetime.fromtimestamp(self.git.commit_datetime)))
 
-    def iter_epoch(self, iterator):
+    def iter_epoch(self, iterator: Iterable) -> Any:
         """
         tracks training epoch and returns the item in `iterator`.
 
@@ -530,7 +505,7 @@ class Monitor:
             yield item
             self.epoch += 1
 
-    def iter_batch(self, iterator):
+    def iter_batch(self, iterator: Iterable) -> Any:
         """
         tracks training iteration and returns the item in `iterator`.
 
@@ -573,7 +548,7 @@ class Monitor:
             self.epoch = self.iter // self.num_iters
 
     @property
-    def prefix(self):
+    def prefix(self) -> str:
         """
         returns the prefix of saved folders.
 
@@ -585,7 +560,7 @@ class Monitor:
 
     @prefix.setter
     @standardize_name
-    def prefix(self, p):
+    def prefix(self, p: str):
         """
         sets the prefix of the saved folder.
 
@@ -598,7 +573,7 @@ class Monitor:
         self._prefix = p
 
     @property
-    def model_name(self):
+    def model_name(self) -> str:
         """
         returns the name of the model.
 
@@ -610,7 +585,7 @@ class Monitor:
 
     @model_name.setter
     @standardize_name
-    def model_name(self, name):
+    def model_name(self, name: str):
         """
         sets the name of the model.
 
@@ -623,7 +598,7 @@ class Monitor:
         self._model_name = name
 
     @property
-    def iter(self):
+    def iter(self) -> int:
         """
         returns the current iteration.
 
@@ -634,7 +609,7 @@ class Monitor:
         return self._iter
 
     @iter.setter
-    def iter(self, iter):
+    def iter(self, iter: int):
         """
         sets the iteration counter to a specific value.
 
@@ -647,7 +622,7 @@ class Monitor:
         self._iter = int(iter)
 
     @property
-    def epoch(self):
+    def epoch(self) -> int:
         """
         returns the current epoch.
 
@@ -658,7 +633,7 @@ class Monitor:
         return self._last_epoch
 
     @epoch.setter
-    def epoch(self, epoch):
+    def epoch(self, epoch: int):
         """
         sets the epoch for logging and keeping training status.
         Should start from 0.
@@ -686,7 +661,7 @@ class Monitor:
         return dict(self._num_since_beginning)
 
     @num_stats.setter
-    def num_stats(self, stats_dict):
+    def num_stats(self, stats_dict: Dict):
         self._num_since_beginning.update(stats_dict)
 
     @num_stats.deleter
@@ -705,36 +680,6 @@ class Monitor:
         self._num_since_beginning[key].clear()
 
     @property
-    def mat_stats(self):
-        """
-        returns the collected scalar statistics from beginning.
-
-        :return:
-            :attr:`~_num_since_beginning`.
-        """
-
-        return dict(self._mat_since_beginning)
-
-    @mat_stats.setter
-    def mat_stats(self, stats_dict):
-        self._mat_since_beginning.update(stats_dict)
-
-    @mat_stats.deleter
-    def mat_stats(self):
-        self._mat_since_beginning.clear()
-
-    def clear_mat_stats(self, key):
-        """
-        removes the collected statistics for matrix plot of the specified `key`.
-
-        :param key:
-            the name of the matrix collection.
-        :return: ``None``.
-        """
-
-        self._mat_since_beginning[key].clear()
-
-    @property
     def hist_stats(self):
         """
         returns the collected tensors from beginning.
@@ -746,14 +691,14 @@ class Monitor:
         return dict(self._hist_since_beginning)
 
     @hist_stats.setter
-    def hist_stats(self, stats_dict):
+    def hist_stats(self, stats_dict: Dict):
         self._hist_since_beginning.update(stats_dict)
 
     @hist_stats.deleter
     def hist_stats(self):
         self._hist_since_beginning.clear()
 
-    def clear_hist_stats(self, key):
+    def clear_hist_stats(self, key: Union[int, str, Tuple]):
         """
         removes the collected statistics for histogram plot of the specified `key`.
 
@@ -769,34 +714,12 @@ class Monitor:
         return self._options
 
     @options.setter
-    def options(self, options_dict):
+    def options(self, options_dict: Dict):
         self._options.update(options_dict)
 
     @options.deleter
     def options(self):
         self._options.clear()
-
-    @standardize_name
-    def set_option(self, name, option, value):
-        """
-        sets option for histogram plotting.
-
-        :param name:
-             name of the histogram plot.
-             Must be the same as the one specified when using :meth:`~hist`.
-        :param option:
-            there are two options which should be passed as a ``str``.
-
-            ``'latest_only'``: plot the histogram of the last recorded tensor only.
-
-            ``'n_bins'``: number of bins of the histogram.
-        :param value:
-            value of the chosen option. Should be ``True``/``False`` for ``'latest_only'``
-            and an integer for ``'n_bins'``.
-        :return: ``None``.
-        """
-
-        self._options[name][option] = value
 
     def _atexit(self):
         if self._initialized:
@@ -850,7 +773,8 @@ class Monitor:
             self.writer.add_graph(network, *args, **kwargs)
 
     @check_path_init
-    def backup(self, files_or_folders, ignore=None):
+    def backup(self, files_or_folders: Union[str, List[str]], ignores: Union[str, List[str]] = None,
+               includes: Union[str, List[str]] = None):
         """
         saves a copy of the given files to :attr:`~current_folder`.
         Accepts a str or list/tuple of file or folder names.
@@ -858,8 +782,11 @@ class Monitor:
 
         :param files_or_folders:
             file to be saved.
-        :param ignore:
+        :param ignores:
             files or patterns to ignore.
+            Default: ``None``.
+        :param includes:
+            files or patterns to include.
             Default: ``None``.
         :return: ``None``.
         """
@@ -867,27 +794,32 @@ class Monitor:
             'unknown type of \'files_or_folders\'. Expect list, tuple or string, got {}'.format(type(files_or_folders))
 
         files_or_folders = (files_or_folders,) if isinstance(files_or_folders, str) else files_or_folders
-        if ignore is None:
-            ignore = ()
+        if ignores is None:
+            ignores = ()
+        elif isinstance(ignores, str):
+            ignores = (ignores,)
+
+        if includes is None:
+            includes = ()
+        elif isinstance(includes, str):
+            includes = (includes,)
 
         # filter ignored files
         import fnmatch
         to_backup = []
         for f in files_or_folders:
-            if not any(fnmatch.fnmatch(f, p) for p in ignore):
+            if any(fnmatch.fnmatch(f, p) for p in includes) and not any(fnmatch.fnmatch(f, p) for p in ignores):
                 to_backup.append(f)
 
         for f in to_backup:
             try:
-                if os.path.isfile(f):
-                    copyfile(f, '%s/%s' % (self.file_folder, os.path.split(f)[-1]))
-                elif os.path.isdir(f):
-                    copytree(f, '%s/%s' % (self.file_folder, os.path.split(f)[-1]))
+                copy_op = copyfile if os.path.isfile(f) else copytree
+                copy_op(f, f'{self.file_folder}/{os.path.split(f)[-1]}')
             except FileNotFoundError:
                 root_logger.warning('No such file or directory: %s' % f)
 
     @standardize_name
-    def add_hparam(self, name: str, value):
+    def add_hparam(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
         if name not in self._options[self._hparams].keys():
             if isinstance(value, T.Tensor):
                 value = utils.to_numpy(value)
@@ -895,7 +827,7 @@ class Monitor:
             self._options[self._hparams][name] = value
 
     @standardize_name
-    def add_metric(self, name: str, value):
+    def add_metric(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
         if name not in self._options[self._hparam_metrics].keys():
             if isinstance(value, T.Tensor):
                 value = utils.to_numpy(value)
@@ -903,7 +835,8 @@ class Monitor:
             self._options[self._hparam_metrics][name] = value
 
     @standardize_name
-    def plot(self, name: str, value, smooth=0, filter_outliers=True, **kwargs):
+    def plot(self, name: str, value: Union[T.Tensor, np.ndarray, float], smooth: Optional[float] = 0,
+             filter_outliers: Optional[bool] = True, **kwargs):
         """
         schedules a plot of scalar value.
         A :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
@@ -943,7 +876,8 @@ class Monitor:
             raise
 
     @standardize_name
-    def plot_matrix(self, name: str, value, labels=None, show_values=False):
+    def plot_matrix(self, name: str, value: Union[T.Tensor, np.ndarray, float],
+                    labels: Union[List[str], List[List[str]]] = None, show_values: bool = False):
         """
         plots the given matrix with colorbar and labels if provided.
         :param name:
@@ -954,6 +888,9 @@ class Monitor:
             labels of each axis.
             Can be a list/tuple of strings or a nested list/tuple.
             Defaults: None.
+        :param show_values:
+            show values of the matrix
+
         :return: ``None``.
         """
 
@@ -962,11 +899,10 @@ class Monitor:
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
-        self._mat_since_last_flush[name] = value
-        self._mat_since_beginning[name][self.iter] = value
+        self._mat_since_last_flush[name] = np.array(value)
 
     @standardize_name
-    def scatter(self, name: str, value, latest_only=False, **kwargs):
+    def scatter(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: bool = False, **kwargs):
         """
         schedules a scattor plot of (a batch of) points.
         A 3D :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
@@ -994,7 +930,7 @@ class Monitor:
             self.writer.add_mesh(name, value, global_step=self.iter, **kwargs)
 
     @standardize_name
-    def imwrite(self, name: str, value, latest_only=False, **kwargs):
+    def imwrite(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: Optional[bool] = False, **kwargs):
         """
         schedules to save images.
         The images will be rendered and saved every :attr:`~print_freq` iterations.
@@ -1039,7 +975,7 @@ class Monitor:
                                    global_step=self.iter, dataformats='NCHW')
 
     @standardize_name
-    def hist(self, name, value, n_bins=20, latest_only=False, **kwargs):
+    def hist(self, name, value: Union[T.Tensor, np.ndarray], n_bins: int = 20, latest_only: bool = False, **kwargs):
         """
         schedules a histogram plot of (a batch of) points.
         A :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
@@ -1066,33 +1002,6 @@ class Monitor:
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'hist/')
             self.writer.add_histogram(prefix + name.replace(' ', '-'), value, global_step=self.iter, **kwargs)
-
-    def schedule(self, func, when=None, *args, **kwargs):
-        """
-        uses to schedule a routine during every epoch in :meth:`~run_training`.
-
-        :param func:
-            a routine to be executed in :meth:`~run_training`.
-        :param when:
-            the moment when the ``func`` is executed.
-            For the moment, choices are:
-            ``'begin_epoch'``, ``'end_epoch'``, ``'begin_iter'``, and ``'end_iter'``.
-            Default: ``'begin_epoch'``.
-        :param args:
-            additional arguments to `func`.
-        :param kwargs:
-            additional keyword arguments to `func`.
-        :return: ``None``
-        """
-
-        assert callable(func), 'func must be callable'
-        name = func.__name__
-        if when is None:
-            when = self._begin_epoch_
-
-        self._schedule[when][name]['func'] = func
-        self._schedule[when][name]['args'] = args
-        self._schedule[when][name]['kwargs'] = kwargs
 
     def _plot(self, nums, prints):
         fig = plt.figure()
@@ -1121,11 +1030,8 @@ class Monitor:
                 if not (np.any(np.isnan(interval)) or np.any(np.isinf(interval))):
                     plt.ylim(interval)
 
-            prints.append("{}\t{:.6f}".format(name, np.mean(np.array(list(val.values())), 0)))
+            prints.append("{}\t{:.10f}".format(name, np.mean(np.array(list(val.values())), 0)))
             fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
-            if self.vis is not None:
-                self.vis.matplot(fig, win=name)
-
             fig.clear()
         plt.close()
 
@@ -1176,9 +1082,6 @@ class Monitor:
 
             for itt, val in val.items():
                 if len(val.shape) == 4:
-                    if self.vis is not None:
-                        self.vis.images(val, win=name)
-
                     for num in range(val.shape[0]):
                         img = val[num]
                         if img.shape[0] in (1, 3):
@@ -1276,13 +1179,14 @@ class Monitor:
             self._scatter(points)
 
             lock.acquire_write()
-            with open(os.path.join(self.file_folder, 'log.pkl'), 'wb') as f:
-                dump_dict = {'iter': it,
-                             'epoch': epoch,
-                             'num_iters': self.num_iters,
-                             'num': dict(self._num_since_beginning),
-                             'mat': dict(self._mat_since_beginning),
-                             'hist': dict(self._hist_since_beginning)}
+            with open(os.path.join(self.file_folder, self._log_file), 'wb') as f:
+                dump_dict = {
+                    'iter': it,
+                    'epoch': epoch,
+                    'num_iters': self.num_iters,
+                    'num': self._num_since_beginning.copy(),
+                    'hist': self._hist_since_beginning.copy()
+                }
 
                 pkl.dump(dump_dict, f, pkl.HIGHEST_PROTOCOL)
                 f.close()
@@ -1294,17 +1198,19 @@ class Monitor:
                 else 'Epoch {} Iteration {}'.format(epoch + 1, it)
 
             elapsed_time = time.time() - self._timer
-            time_unit = 'mins' if elapsed_time < 3600. else 'hrs'
-            elapsed_time = '{:.2f}'.format(elapsed_time / 60. if elapsed_time < 3600.
-                                           else elapsed_time / 3600.) + time_unit
-            log = 'Elapsed time {} {}\t{}\t{}'.format(elapsed_time, self.current_run, iter_show, '\t'.join(prints))
+            if elapsed_time < 3600:
+                time_unit = 'mins'
+                elapsed_time /= 60.
+            elif 86400 > elapsed_time >= 3600:
+                time_unit = 'hrs'
+                elapsed_time /= 3600.
+            else:
+                time_unit = 'days'
+                elapsed_time /= 86400
+
+            elapsed_time_str = '{:.2f}'.format(elapsed_time) + time_unit
+            log = 'Elapsed time {} {}\t{}\t{}'.format(elapsed_time_str, self.current_run, iter_show, '\t'.join(prints))
             root_logger.info(log)
-
-            if self.send_slack:
-                message = 'From %s ' % self.current_folder
-                message += log
-                utils.slack_message(message=message, **self.kwargs)
-
             self._q.task_done()
 
     @check_path_init
@@ -1316,9 +1222,9 @@ class Monitor:
         :return: ``None``.
         """
 
-        self._q.put((self.iter, self.epoch, dict(self._num_since_last_flush), dict(self._mat_since_last_flush),
-                     dict(self._img_since_last_flush), dict(self._hist_since_last_flush),
-                     dict(self._points_since_last_flush)))
+        self._q.put((self.iter, self.epoch, self._num_since_last_flush.copy(), self._mat_since_last_flush.copy(),
+                     self._img_since_last_flush.copy(), self._hist_since_last_flush.copy(),
+                     self._points_since_last_flush.copy()))
         self._num_since_last_flush.clear()
         self._mat_since_last_flush.clear()
         self._img_since_last_flush.clear()
@@ -1330,19 +1236,18 @@ class Monitor:
         versioned_filename = os.path.normpath(name + '-%d' % self.iter + ext)
 
         if file not in self._dump_files.keys():
-            self._dump_files[file] = []
+            self._dump_files[file] = deque()
 
         if versioned_filename not in self._dump_files[file]:
             self._dump_files[file].append(versioned_filename)
 
         if len(self._dump_files[file]) > keep:
-            oldest_file = self._dump_files[file][0]
+            oldest_file = self._dump_files[file].popleft()
             full_file = os.path.join(self.current_folder, oldest_file)
             if os.path.exists(full_file):
                 os.remove(full_file)
             else:
-                root_logger.warning('The oldest saved file does not exist')
-            self._dump_files[file].remove(oldest_file)
+                root_logger.warning(f'{full_file} does not exist')
 
         with open(os.path.join(self.current_folder, '_version.pkl'), 'wb') as f:
             pkl.dump(self._dump_files, f, pkl.HIGHEST_PROTOCOL)
@@ -1350,7 +1255,7 @@ class Monitor:
 
     @check_path_init
     @standardize_name
-    def dump(self, name, obj, method='pickle', keep=-1, **kwargs):
+    def dump(self, name: str, obj: Any, method: str = 'pickle', keep: int = -1, **kwargs):
         """
         saves the given object.
 
@@ -1384,7 +1289,7 @@ class Monitor:
         method = method if callable(method) else self._io_method[method + '_save']
         self._dump(name.replace(' ', '_'), obj, keep, method, **kwargs)
 
-    def load(self, file, method='pickle', version=-1, **kwargs):
+    def load(self, file: str, method: str = 'pickle', version: int = -1, **kwargs):
         """
         loads from the given file.
 
@@ -1517,17 +1422,15 @@ class Monitor:
         self.num_iters = self._num_iters
         self._timer = time.time()
 
-    def read_log(self, log):
+    def read_log(self):
         """
-        reads a saved log file.
+        reads the saved log file.
 
-        :param log:
-            name of the log file.
         :return:
             contents of the log file.
         """
 
-        with open(os.path.join(self.current_folder, 'files', log), 'rb') as f:
+        with open(os.path.join(self.current_folder, 'files', self._log_file), 'rb') as f:
             f.seek(0)
             try:
                 contents = pkl.load(f)
@@ -1538,4 +1441,4 @@ class Monitor:
         return contents
 
 
-monitor = Monitor(use_tensorboard=True)
+monitor = Monitor()
