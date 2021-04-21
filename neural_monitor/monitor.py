@@ -853,15 +853,16 @@ class Monitor:
         import fnmatch
         to_backup = []
 
-        def filter_files(files):
-            for f in files:
+        def filter_files(file_tuples):
+            for tup in file_tuples:
+                _, f = tup
                 # this is a dirty hack. fnmatch cannot match partial string
                 if not any(fnmatch.fnmatch(f, p) for p in ignores) and not any(p in f for p in ignores):
                     if includes:
                         if any(fnmatch.fnmatch(f, p) for p in includes):
-                            to_backup.append(f)
+                            to_backup.append(tup)
                     else:
-                        to_backup.append(f)
+                        to_backup.append(tup)
 
         for path in files_or_folders:
             if os.path.isdir(path):
@@ -872,17 +873,18 @@ class Monitor:
                     if root_dir.startswith('/'):
                         root_dir = root_dir[1:]
 
-                    filter_files([os.path.join(root_dir, f) for f in files])
+                    filter_files([(os.path.join(root, f), os.path.join(root_dir, f)) for f in files])
             elif os.path.isfile(path):
-                filter_files([path])
+                filter_files([(path, path)])
 
-        for f in to_backup:
+        for tup in to_backup:
+            src, dest = tup
             try:
-                dest = os.path.join(self.file_folder, f)
+                dest = os.path.join(self.file_folder, dest)
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
-                copyfile(f, f'{dest}')
+                copyfile(src, f'{dest}')
             except FileNotFoundError:
-                root_logger.warning('No such file or directory: %s' % f)
+                root_logger.warning('No such file or directory: %s' % src)
 
     @standardize_name
     def add_hparam(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
