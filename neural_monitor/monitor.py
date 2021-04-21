@@ -63,16 +63,19 @@ def track(name: str, x: Union[T.Tensor, T.nn.Module], direction: Optional[str] =
 
     Here is an example of how to track an intermediate output ::
 
+        from neural_monitor import track, get_tracked_variables
+        import nueralnet_pytorch as nnt
+
         input = ...
-        conv1 = nnt.track('op', nnt.Conv2d(shape, 4, 3), 'all')
-        conv2 = nnt.Conv2d(conv1.output_shape, 5, 3)
+        conv1 = track('op', nn.Conv2d(dim, 4, 3), 'all')
+        conv2 = nn.Conv2d(4, 5, 3)
         intermediate = conv1(input)
-        output = nnt.track('conv2_output', conv2(intermediate), 'all')
+        output = track('conv2_output', conv2(intermediate), 'all')
         loss = T.sum(output ** 2)
         loss.backward(retain_graph=True)
         d_inter = T.autograd.grad(loss, intermediate, retain_graph=True)
         d_out = T.autograd.grad(loss, output)
-        tracked = nnt.eval_tracked_variables()
+        tracked = get_tracked_variables()
 
         testing.assert_allclose(tracked['conv2_output'], nnt.utils.to_numpy(output))
         testing.assert_allclose(np.stack(tracked['grad_conv2_output']), nnt.utils.to_numpy(d_out[0]))
@@ -206,7 +209,7 @@ def standardize_name(f):
 class Monitor:
     """
     Collects statistics and displays the results using various backends.
-    The collected stats are stored in '<root>/<model_name>/<prefix><#id>'
+    The collected stats are stored in ``<root>/<model_name>/<prefix><#id>``
     where #id is automatically assigned each time a new run starts.
 
     Examples
@@ -216,11 +219,9 @@ class Monitor:
 
     .. code-block:: python
 
-        from neuralnet_pytorch import monitor as mon
+        from neural_monitor import monitor as mon
 
-        mon.model_name = 'foo-model'
-        mon.set_path()
-        mon.print_freq = 100
+        mon.initialize(model_name='foo-model', print_freq=100)
 
         ...
         for epoch in mon.iter_epoch(range(n_epochs)):
@@ -316,14 +317,36 @@ class Monitor:
         """
 
         :param model_name:
+            name of the experimented model.
+            Default: ``'my-model'``.
         :param root:
+            root path to store results.
+            Default: ``'results'``.
         :param current_folder:
+            the folder that the experiment is currently dump to.
+            Note that if `current_folder` already exists,
+            all the contents will be loaded.
+            This option can be used for loading a trained model.
+            Default: ``None``.
         :param print_freq:
+            frequency of stdout.
+            Default: 1.
         :param num_iters:
+            number of iterations per epoch.
+            If not provided, it will be calculated after one epoch.
+            Default: ``None``.
         :param prefix:
+            a common prefix that is shared between folder names of different runs.
+            Default: ``'run'``.
         :param use_tensorboard:
+            whether to use Tensorboard.
+            Default: ``True``.
         :param with_git:
+            whether to retrieve some Git information.
+            Should be used only when the project is initialized with Git.
+            Default: ``False``.
         :return:
+            ``None``.
         """
         self.model_name = 'my-model' if model_name is None else model_name
         self.root = root
@@ -341,7 +364,7 @@ class Monitor:
             self.git = None
 
         if current_folder is None:
-            root = 'results' if self.root is None else self.root
+            self.root = root = 'results' if self.root is None else self.root
             path = os.path.join(root, self.model_name)
             os.makedirs(path, exist_ok=True)
             path = self._get_new_folder(path)
@@ -880,6 +903,7 @@ class Monitor:
                     labels: Union[List[str], List[List[str]]] = None, show_values: bool = False):
         """
         plots the given matrix with colorbar and labels if provided.
+
         :param name:
             name of the figure to be saved. Must be unique among plots.
         :param value:
@@ -890,7 +914,6 @@ class Monitor:
             Defaults: None.
         :param show_values:
             show values of the matrix
-
         :return: ``None``.
         """
 
