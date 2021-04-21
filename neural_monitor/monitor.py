@@ -15,7 +15,7 @@ import atexit
 import logging
 from matplotlib import cm
 from imageio import imwrite
-from shutil import copyfile, copytree
+from shutil import copyfile
 from collections import namedtuple, deque
 import functools
 
@@ -826,7 +826,7 @@ class Monitor:
         You can backup your codes and/or config files for later use.
 
         :param files_or_folders:
-            file to be saved.
+            files or folders to be saved.
         :param ignores:
             files or patterns to ignore.
             Default: ``None``.
@@ -849,17 +849,38 @@ class Monitor:
         elif isinstance(includes, str):
             includes = (includes,)
 
-        # filter ignored files
+        # filter ignored and included files
         import fnmatch
         to_backup = []
-        for f in files_or_folders:
-            if any(fnmatch.fnmatch(f, p) for p in includes) and not any(fnmatch.fnmatch(f, p) for p in ignores):
-                to_backup.append(f)
+
+        def filter_files(files):
+            for f in files:
+                # this is a dirty hack. fnmatch cannot match partial string
+                if not any(fnmatch.fnmatch(f, p) for p in ignores) and not any(p in f for p in ignores):
+                    if includes:
+                        if any(fnmatch.fnmatch(f, p) for p in includes):
+                            to_backup.append(f)
+                    else:
+                        to_backup.append(f)
+
+        for path in files_or_folders:
+            if os.path.isdir(path):
+                path = os.path.abspath(path)
+                directory = os.path.split(path)[0]
+                for root, dirs, files in os.walk(path):
+                    root_dir = root[len(directory):]
+                    if root_dir.startswith('/'):
+                        root_dir = root_dir[1:]
+
+                    filter_files([os.path.join(root_dir, f) for f in files])
+            elif os.path.isfile(path):
+                filter_files([path])
 
         for f in to_backup:
             try:
-                copy_op = copyfile if os.path.isfile(f) else copytree
-                copy_op(f, f'{self.file_folder}/{os.path.split(f)[-1]}')
+                dest = os.path.join(self.file_folder, f)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                copyfile(f, f'{dest}')
             except FileNotFoundError:
                 root_logger.warning('No such file or directory: %s' % f)
 
