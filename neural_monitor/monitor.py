@@ -904,7 +904,7 @@ class Monitor:
 
     @standardize_name
     def plot(self, name: str, value: Union[T.Tensor, np.ndarray, float], smooth: Optional[float] = 0,
-             filter_outliers: Optional[bool] = True, **kwargs):
+             filter_outliers: Optional[bool] = True, precision: Optional[int] = 5, **kwargs):
         """
         schedules a plot of scalar value.
         A :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
@@ -921,6 +921,9 @@ class Monitor:
             whether to filter out outliers in plot.
             This affects only the plot and not the raw statistics.
             Default: True.
+        :param precision:
+            number of digits after decimal.
+            Default: ``5``.
         :param kwargs:
             additional options to tensorboard.
         :return: ``None``.
@@ -928,6 +931,7 @@ class Monitor:
 
         self._options[name]['smooth'] = smooth
         self._options[name]['filter_outliers'] = filter_outliers
+        self._options[name]['precision'] = precision
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
@@ -1077,6 +1081,7 @@ class Monitor:
         for name, val in list(nums.items()):
             smooth = self._options[name].get('smooth')
             filter_outliers = self._options[name].get('filter_outliers')
+            prec = self._options[name].get('precision')
 
             self._num_since_beginning[name].update(val)
             plt.ylabel(name)
@@ -1098,7 +1103,7 @@ class Monitor:
                 if not (np.any(np.isnan(interval)) or np.any(np.isinf(interval))):
                     plt.ylim(interval)
 
-            prints.append("{}\t{:.10f}".format(name, np.mean(np.array(list(val.values())), 0)))
+            prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
             fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
             fig.clear()
         plt.close()
