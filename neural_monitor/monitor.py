@@ -366,6 +366,10 @@ class Monitor:
         :return:
             ``None``.
         """
+        if self._initialized:
+            logger.warning(f'Neural Monitor has alread been initialized at {self.current_folder}')
+            return
+
         self.model_name = 'my-model' if model_name is None else model_name
         self.root = root
         self.prefix = prefix
