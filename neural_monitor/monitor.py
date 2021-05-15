@@ -18,6 +18,7 @@ from imageio import imwrite
 from shutil import copyfile
 from collections import namedtuple, deque
 import functools
+from multiprocessing import Lock
 
 from typing import (
     List,
@@ -47,6 +48,7 @@ __all__ = ['monitor', 'logger', 'track', 'collect_tracked_variables', 'get_track
 _TRACKS = collections.OrderedDict()
 hooks = {}
 lock = utils.ReadWriteLock()
+plock = Lock()
 Git = namedtuple('Git', ('branch', 'commit_id', 'commit_message', 'commit_datetime', 'commit_user', 'commit_email'))
 
 # setup logger
@@ -331,7 +333,8 @@ class Monitor:
     def initialize(self, model_name: Optional[str] = None, root: Optional[str] = None,
                    current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
                    num_iters: Optional[int] = None, prefix: Optional[str] = 'run',
-                   use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False) -> None:
+                   use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
+                   not_found_warn=True) -> None:
         """
 
         :param model_name:
@@ -396,7 +399,7 @@ class Monitor:
 
         if os.path.exists(self.current_folder):
             lock.acquire_read()
-            self.load_state()
+            self.load_state(not_found_warn=not_found_warn)
             lock.release_read()
         else:
             os.makedirs(self.current_folder, exist_ok=True)
@@ -426,36 +429,46 @@ class Monitor:
 
         self._thread.start()
 
-    def load_state(self) -> None:
+    def load_state(self, not_found_warn=False) -> None:
         self.current_run = os.path.basename(self.current_folder)
 
         try:
+            plock.acquire()
+            lock.acquire_read()
             log = self.read_log()
+            lock.release_read()
+            plock.release()
+
             try:
                 self.num_stats = log['num']
             except KeyError:
-                root_logger.warning('No record found for `num`', exc_info=True)
+                if not_found_warn:
+                    root_logger.warning('No record found for `num`', exc_info=True)
 
             try:
                 self.num_stats = log['mat']
             except KeyError:
-                root_logger.warning('No record found for `mat`', exc_info=True)
+                if not_found_warn:
+                    root_logger.warning('No record found for `mat`', exc_info=True)
 
             try:
                 self.hist_stats = log['hist']
             except KeyError:
-                root_logger.warning('No record found for `hist`', exc_info=True)
+                if not_found_warn:
+                    root_logger.warning('No record found for `hist`', exc_info=True)
 
             if self.num_iters is None:
                 try:
                     self.num_iters = log['num_iters']
                 except KeyError:
-                    root_logger.warning('No record found for `num_iters`', exc_info=True)
+                    if not_found_warn:
+                        root_logger.warning('No record found for `num_iters`', exc_info=True)
 
             try:
                 self.iter = log['iter']
             except KeyError:
-                root_logger.warning('No record found for `iter`', exc_info=True)
+                if not_found_warn:
+                    root_logger.warning('No record found for `iter`', exc_info=True)
 
             try:
                 self.epoch = log['epoch']
@@ -463,10 +476,12 @@ class Monitor:
                 if self.num_iters:
                     self.epoch = self.iter // self.num_iters
                 else:
-                    root_logger.warning('No record found for `epoch`', exc_info=True)
+                    if not_found_warn:
+                        root_logger.warning('No record found for `epoch`', exc_info=True)
 
         except FileNotFoundError:
-            root_logger.warning(f'`{self._log_file}` not found in `{self.file_folder}`', exc_info=True)
+            if not_found_warn:
+                root_logger.warning(f'`{self._log_file}` not found in `{self.file_folder}`', exc_info=True)
 
     def _get_new_folder(self, path):
         runs = [folder for folder in os.listdir(path) if folder.startswith(self.prefix)]
@@ -1251,6 +1266,7 @@ class Monitor:
             # scatter point set(s)
             self._scatter(points)
 
+            plock.acquire()
             lock.acquire_write()
             with open(os.path.join(self.file_folder, self._log_file), 'wb') as f:
                 dump_dict = {
@@ -1264,6 +1280,7 @@ class Monitor:
                 pkl.dump(dump_dict, f, pkl.HIGHEST_PROTOCOL)
                 f.close()
             lock.release_write()
+            plock.release()
 
             iter_show = 'Epoch {} Iteration {}/{} ({:.2f}%)'.format(
                 epoch + 1, it % self.num_iters, self.num_iters,
