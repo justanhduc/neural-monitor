@@ -18,7 +18,6 @@ from imageio import imwrite
 from shutil import copyfile
 from collections import namedtuple, deque
 import functools
-from multiprocessing import Lock
 
 from typing import (
     List,
@@ -48,7 +47,6 @@ __all__ = ['monitor', 'logger', 'track', 'collect_tracked_variables', 'get_track
 _TRACKS = collections.OrderedDict()
 hooks = {}
 lock = utils.ReadWriteLock()
-plock = Lock()
 Git = namedtuple('Git', ('branch', 'commit_id', 'commit_message', 'commit_datetime', 'commit_user', 'commit_email'))
 
 # setup logger
@@ -433,12 +431,7 @@ class Monitor:
         self.current_run = os.path.basename(self.current_folder)
 
         try:
-            plock.acquire()
-            lock.acquire_read()
             log = self.read_log()
-            lock.release_read()
-            plock.release()
-
             try:
                 self.num_stats = log['num']
             except KeyError:
@@ -1266,7 +1259,6 @@ class Monitor:
             # scatter point set(s)
             self._scatter(points)
 
-            plock.acquire()
             lock.acquire_write()
             with open(os.path.join(self.file_folder, self._log_file), 'wb') as f:
                 dump_dict = {
@@ -1280,7 +1272,6 @@ class Monitor:
                 pkl.dump(dump_dict, f, pkl.HIGHEST_PROTOCOL)
                 f.close()
             lock.release_write()
-            plock.release()
 
             iter_show = 'Epoch {} Iteration {}/{} ({:.2f}%)'.format(
                 epoch + 1, it % self.num_iters, self.num_iters,
