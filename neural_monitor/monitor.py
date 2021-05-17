@@ -330,7 +330,7 @@ class Monitor:
 
     def initialize(self, model_name: Optional[str] = None, root: Optional[str] = None,
                    current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
-                   num_iters: Optional[int] = None, prefix: Optional[str] = 'run',
+                   num_iters: Optional[int] = None, prefix: Optional[str] = None,
                    use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
                    not_found_warn=True) -> None:
         """
@@ -622,6 +622,10 @@ class Monitor:
         :return:
             ``None``.
         """
+        if p is None:
+            from datetime import datetime
+            now = datetime.now()  # current date and time
+            p = now.strftime('%m.%d.%y-%H.%M.%S')
 
         self._prefix = p
 
