@@ -1,13 +1,6 @@
 from setuptools import setup, find_packages
 import os
-
-VERSION = {
-    'ver': 0,
-    'major': 0,
-    'minor': 1
-}
-
-version = f'{VERSION["ver"]}.{VERSION["major"]}.{VERSION["minor"]}'
+import versioneer
 
 
 def setup_package():
@@ -17,7 +10,8 @@ def setup_package():
 
     setup(
         name='neural-monitor',
-        version=version,
+        version=versioneer.get_version(),
+        cmdclass=versioneer.get_cmdclass(),
         description='Let me take care of your experiments statistics.',
         long_description=long_description,
         long_description_content_type='text/markdown',

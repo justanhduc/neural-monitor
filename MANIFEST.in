@@ -1,0 +1,2 @@
+include versioneer.py
+include neural_monitor/_version.py
