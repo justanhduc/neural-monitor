@@ -332,7 +332,7 @@ class Monitor:
                    current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
                    num_iters: Optional[int] = None, prefix: Optional[str] = None,
                    use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
-                   not_found_warn=True) -> None:
+                   not_found_warn: bool = True) -> None:
         """
 
         :param model_name:
@@ -364,6 +364,9 @@ class Monitor:
             whether to retrieve some Git information.
             Should be used only when the project is initialized with Git.
             Default: ``False``.
+        :param not_found_warn:
+            whether to warn when some statisitcs are missing from saved checkpoint.
+            Default: ``True``.
         :return:
             ``None``.
         """
@@ -437,12 +440,6 @@ class Monitor:
             except KeyError:
                 if not_found_warn:
                     root_logger.warning('No record found for `num`', exc_info=True)
-
-            try:
-                self.num_stats = log['mat']
-            except KeyError:
-                if not_found_warn:
-                    root_logger.warning('No record found for `mat`', exc_info=True)
 
             try:
                 self.hist_stats = log['hist']
