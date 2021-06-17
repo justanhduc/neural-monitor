@@ -18,7 +18,7 @@ from imageio import imwrite
 from shutil import copyfile
 from collections import namedtuple, deque
 import functools
-
+import torch.distributed
 from typing import (
     List,
     Union,
@@ -206,6 +206,29 @@ def standardize_name(f):
     return func
 
 
+def distributed_collect(f):
+    @functools.wraps(f)
+    def func(self: Monitor, name: str, value: T.Tensor, *args, **kwargs):
+        if self.distributed:
+            assert isinstance(value, T.Tensor), 'value must be a Tensor in distributed mode'
+
+        T.distributed.all_reduce(value, op=T.distributed.ReduceOp.SUM)
+        value = value / T.distributed.get_world_size()
+        return f(self, name, value, *args, **kwargs)
+
+    return func
+
+
+def distributed_flush(f):
+    @functools.wraps(f)
+    def func(self: Monitor, *args, **kwargs):
+        if self.distributed and self.rank != 0:
+            return
+        return f(*args, **kwargs)
+
+    return func
+
+
 class Monitor:
     """
     Collects statistics and displays the results using various backends.
@@ -316,6 +339,8 @@ class Monitor:
 
         self._q = queue.Queue()
         self._thread = threading.Thread(target=self._flush, daemon=True)
+        self.rank = None
+        self.distributed = None
 
         # schedule to flush when the program finishes
         atexit.register(self._atexit)
@@ -334,6 +359,9 @@ class Monitor:
                    use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
                    not_found_warn: bool = True) -> None:
         """
+        Initializes the working directory for logging.
+        If the training is distributed, this initialization should be called
+        after the distributed mode has been initialized.
 
         :param model_name:
             name of the experimented model.
@@ -365,7 +393,7 @@ class Monitor:
             Should be used only when the project is initialized with Git.
             Default: ``False``.
         :param not_found_warn:
-            whether to warn when some statisitcs are missing from saved checkpoint.
+            whether to warn when some statistics are missing from saved checkpoint.
             Default: ``True``.
         :return:
             ``None``.
@@ -383,6 +411,10 @@ class Monitor:
         self.use_tensorboard = use_tensorboard
         self.current_folder = current_folder
         self.with_git = with_git
+        self.distributed = T.distributed.is_initialized()
+        self.rank = T.distributed.get_rank() if self.distributed else 0
+        if self.distributed and self.rank != 0:
+            return
 
         if with_git:
             self.init_git()
@@ -512,6 +544,7 @@ class Monitor:
 
         self.with_git = True if self.git is not None else False
 
+    @distributed_flush
     @check_path_init
     def show_git_info(self) -> None:
         import datetime
@@ -785,6 +818,7 @@ class Monitor:
 
             self._q.join()
 
+    @distributed_flush
     @check_path_init
     def dump_rep(self, name, obj):
         """
@@ -801,6 +835,7 @@ class Monitor:
             outfile.write(str(obj))
             outfile.close()
 
+    @distributed_flush
     @check_path_init
     def dump_model(self, network, use_tensorboard=False, *args, **kwargs):
         """
@@ -826,6 +861,7 @@ class Monitor:
         if use_tensorboard:
             self.writer.add_graph(network, *args, **kwargs)
 
+    @distributed_flush
     @check_path_init
     def backup(self, files_or_folders: Union[str, List[str]], ignores: Union[str, List[str]] = None,
                includes: Union[str, List[str]] = None):
@@ -911,6 +947,7 @@ class Monitor:
 
             self._options[self._hparam_metrics][name] = value
 
+    @distributed_collect
     @standardize_name
     def plot(self, name: str, value: Union[T.Tensor, np.ndarray, float], smooth: Optional[float] = 0,
              filter_outliers: Optional[bool] = True, precision: Optional[int] = 5, **kwargs):
@@ -956,6 +993,7 @@ class Monitor:
             print('Tensorboard must be initialized to use this feature')
             raise
 
+    @distributed_collect
     @standardize_name
     def plot_matrix(self, name: str, value: Union[T.Tensor, np.ndarray, float],
                     labels: Union[List[str], List[List[str]]] = None, show_values: bool = False):
@@ -982,6 +1020,7 @@ class Monitor:
 
         self._mat_since_last_flush[name] = np.array(value)
 
+    @distributed_collect
     @standardize_name
     def scatter(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: bool = False, **kwargs):
         """
@@ -1010,6 +1049,7 @@ class Monitor:
         if self.writer is not None:
             self.writer.add_mesh(name, value, global_step=self.iter, **kwargs)
 
+    @distributed_collect
     @standardize_name
     def imwrite(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: Optional[bool] = False, **kwargs):
         """
@@ -1055,6 +1095,7 @@ class Monitor:
             self.writer.add_images(prefix + name.replace(' ', '-'), value,
                                    global_step=self.iter, dataformats='NCHW')
 
+    @distributed_collect
     @standardize_name
     def hist(self, name, value: Union[T.Tensor, np.ndarray], n_bins: int = 20, latest_only: bool = False, **kwargs):
         """
@@ -1295,6 +1336,7 @@ class Monitor:
             root_logger.info(log)
             self._q.task_done()
 
+    @distributed_flush
     @check_path_init
     def flush(self):
         """
@@ -1335,6 +1377,7 @@ class Monitor:
             pkl.dump(self._dump_files, f, pkl.HIGHEST_PROTOCOL)
         return versioned_filename
 
+    @distributed_flush
     @check_path_init
     @standardize_name
     def dump(self, name: str, obj: Any, method: str = 'pickle', keep: int = -1, **kwargs):
