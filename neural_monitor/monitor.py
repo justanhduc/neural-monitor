@@ -208,7 +208,7 @@ def standardize_name(f):
 
 def distributed_collect(f):
     @functools.wraps(f)
-    def func(self: Monitor, name: str, value: T.Tensor, *args, **kwargs):
+    def func(self, name: str, value: T.Tensor, *args, **kwargs):
         if self.distributed:
             assert isinstance(value, T.Tensor), 'value must be a Tensor in distributed mode'
 
@@ -221,7 +221,7 @@ def distributed_collect(f):
 
 def distributed_flush(f):
     @functools.wraps(f)
-    def func(self: Monitor, *args, **kwargs):
+    def func(self, *args, **kwargs):
         if self.distributed and self.rank != 0:
             return
         return f(*args, **kwargs)
