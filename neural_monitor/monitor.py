@@ -224,7 +224,7 @@ def distributed_flush(f):
     def func(self, *args, **kwargs):
         if self.distributed and self.rank != 0:
             return
-        return f(*args, **kwargs)
+        return f(self, *args, **kwargs)
 
     return func
 
