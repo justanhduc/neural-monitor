@@ -1408,6 +1408,44 @@ class Monitor:
             pkl.dump(self._dump_files, f, pkl.HIGHEST_PROTOCOL)
         return versioned_filename
 
+    def save_to_table(self, table_name: str, **kwargs: Any):
+        """
+        Write summary into a csv table.
+        Adapted from https://github.com/JonasGeiping/fullbatchtraining.
+
+        :param table_name:
+            name for the summary table.
+        :param kwargs:
+            fields to write into the table
+        """
+        import csv
+
+        # Check for file
+        fname = os.path.join(self.root, f'table_{table_name}.csv')
+        fieldnames = list(kwargs.keys())
+
+        # ensure location is the first column
+        location = 'location'
+        fieldnames.insert(0, location)
+        kwargs[location] = self.current_folder
+
+        # Read or write header
+        try:
+            with open(fname, 'r') as f:
+                reader = csv.reader(f, delimiter='\t')
+                header = next(reader)  # noqa  # this line is testing the header
+                # assert header == fieldnames[:len(header)]  # new columns are ok, but old columns need to be consistent
+                # dont test, always write when in doubt to prevent erroneous table rewrites
+        except Exception as e:  # noqa
+            with open(fname, 'w') as f:
+                writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
+                writer.writeheader()
+
+        # Add row for this experiment
+        with open(fname, 'a') as f:
+            writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
+            writer.writerow(kwargs)
+
     @distributed_flush
     @check_path_init
     @standardize_name
