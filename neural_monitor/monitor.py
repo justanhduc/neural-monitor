@@ -28,6 +28,7 @@ from typing import (
     Dict,
     Any
 )
+import pandas as pd
 
 try:
     import visdom
@@ -1157,6 +1158,7 @@ class Monitor:
             self.writer.add_histogram(prefix + name.replace(' ', '-'), value, global_step=self.iter, **kwargs)
 
     def _plot(self, nums, prints):
+        summary = pd.DataFrame()
         fig = plt.figure()
         plt.xlabel('iteration')
         for name, val in list(nums.items()):
@@ -1164,6 +1166,11 @@ class Monitor:
             filter_outliers = self._options[name].get('filter_outliers')
             prec = self._options[name].get('precision')
 
+            # csv summary
+            tmp = pd.DataFrame(val.values(), index=val.keys(), columns=[name], dtype='float32')
+            summary = summary.join(tmp, how='outer')
+
+            # plot
             self._num_since_beginning[name].update(val)
             plt.ylabel(name)
             x_vals = sorted(self._num_since_beginning[name].keys())
@@ -1188,6 +1195,9 @@ class Monitor:
             fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
             fig.clear()
         plt.close()
+        csv_file = os.path.join(self.current_folder, 'summary.csv')
+        summary.sort_index()  # makes sure the rows are in chronological order
+        summary.to_csv(csv_file, mode='a', header=True if not os.path.exists(csv_file) else False)
 
     def _plot_matrix(self, mats):
         fig = plt.figure()
