@@ -416,7 +416,7 @@ class Monitor:
             ``None``.
         """
         if self._initialized:
-            logger.warning(f'Neural Monitor has alread been initialized at {self.current_folder}')
+            logger.warning(f'Neural Monitor has already been initialized at {self.current_folder}')
             return
 
         self.model_name = 'my-model' if model_name is None else model_name
@@ -480,45 +480,64 @@ class Monitor:
 
         self._thread.start()
 
+    def state_dict(self) -> dict:
+        state_dict = {
+            'iter': self.iter,
+            'epoch': self.epoch,
+            'num_iters': self.num_iters,
+            'num': self._num_since_beginning.copy(),
+            'hist': self._hist_since_beginning.copy(),
+            'options': self._options.copy()
+        }
+        return state_dict
+
+    def load_state_dict(self, state_dict: dict, not_found_warn: bool = True) -> None:
+        try:
+            self.num_stats = state_dict['num']
+        except KeyError:
+            if not_found_warn:
+                root_logger.warning('No record found for `num`', exc_info=True)
+
+        try:
+            self.hist_stats = state_dict['hist']
+        except KeyError:
+            if not_found_warn:
+                root_logger.warning('No record found for `hist`', exc_info=True)
+
+        if self.num_iters is None:
+            try:
+                self.num_iters = state_dict['num_iters']
+            except KeyError:
+                if not_found_warn:
+                    root_logger.warning('No record found for `num_iters`', exc_info=True)
+
+        try:
+            self.iter = state_dict['iter']
+        except KeyError:
+            if not_found_warn:
+                root_logger.warning('No record found for `iter`', exc_info=True)
+
+        try:
+            self.epoch = state_dict['epoch']
+        except KeyError:
+            if self.num_iters:
+                self.epoch = self.iter // self.num_iters
+            else:
+                if not_found_warn:
+                    root_logger.warning('No record found for `epoch`', exc_info=True)
+
+        try:
+            self._options = state_dict['options']
+        except KeyError:
+            if not_found_warn:
+                root_logger.warning('No record found for `options`', exc_info=True)
+
     def load_state(self, not_found_warn=False) -> None:
         self.current_run = os.path.basename(self.current_folder)
 
         try:
             log = self.read_log()
-            try:
-                self.num_stats = log['num']
-            except KeyError:
-                if not_found_warn:
-                    root_logger.warning('No record found for `num`', exc_info=True)
-
-            try:
-                self.hist_stats = log['hist']
-            except KeyError:
-                if not_found_warn:
-                    root_logger.warning('No record found for `hist`', exc_info=True)
-
-            if self.num_iters is None:
-                try:
-                    self.num_iters = log['num_iters']
-                except KeyError:
-                    if not_found_warn:
-                        root_logger.warning('No record found for `num_iters`', exc_info=True)
-
-            try:
-                self.iter = log['iter']
-            except KeyError:
-                if not_found_warn:
-                    root_logger.warning('No record found for `iter`', exc_info=True)
-
-            try:
-                self.epoch = log['epoch']
-            except KeyError:
-                if self.num_iters:
-                    self.epoch = self.iter // self.num_iters
-                else:
-                    if not_found_warn:
-                        root_logger.warning('No record found for `epoch`', exc_info=True)
-
+            self.load_state_dict(log, not_found_warn)
         except FileNotFoundError:
             if not_found_warn:
                 root_logger.warning(f'`{self._log_file}` not found in `{self.file_folder}`', exc_info=True)
@@ -1345,15 +1364,10 @@ class Monitor:
 
             lock.acquire_write()
             with open(os.path.join(self.file_folder, self._log_file), 'wb') as f:
-                dump_dict = {
-                    'iter': it,
-                    'epoch': epoch,
-                    'num_iters': self.num_iters,
-                    'num': self._num_since_beginning.copy(),
-                    'hist': self._hist_since_beginning.copy()
-                }
-
-                pkl.dump(dump_dict, f, pkl.HIGHEST_PROTOCOL)
+                state_dict = self.state_dict()
+                state_dict['iter'] = it
+                state_dict['epoch'] = epoch
+                pkl.dump(state_dict, f, pkl.HIGHEST_PROTOCOL)
                 f.close()
             lock.release_write()
 
