@@ -959,12 +959,29 @@ class Monitor:
             elif os.path.isfile(path):
                 filter_files([(path, path)])
 
+        def get_backup_filename(dst):
+            if not os.path.exists(dst):
+                return dst
+
+            filename = os.path.basename(dst)
+            filename, ext = os.path.splitext(filename)
+            i = 1
+            while True:
+                new_dest = os.path.join(os.path.dirname(dst), f'{filename}_{i}{ext}')
+                if os.path.exists(new_dest):
+                    i += 1
+                    continue
+                break
+
+            return new_dest
+
         for tup in to_backup:
-            src, dest = tup
+            src, dst = tup
             try:
-                dest = os.path.join(self.file_folder, dest)
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                copyfile(src, f'{dest}')
+                dst = os.path.join(self.file_folder, dst)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                dst = get_backup_filename(dst)
+                copyfile(src, f'{dst}')
             except FileNotFoundError:
                 root_logger.warning('No such file or directory: %s' % src)
 
