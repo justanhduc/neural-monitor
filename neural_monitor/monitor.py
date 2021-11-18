@@ -17,6 +17,7 @@ from matplotlib import cm
 from imageio import imwrite
 from shutil import copyfile
 from collections import namedtuple, deque
+import functools
 import torch.distributed
 from typing import (
     List,
@@ -29,7 +30,6 @@ from typing import (
 )
 import pandas as pd
 from easydict import EasyDict
-from decorator import decorator
 
 try:
     import visdom
@@ -184,8 +184,8 @@ def _spawn_defaultdict_ordereddict():
     return collections.OrderedDict()
 
 
-@decorator
 def check_path_init(f):
+    @functools.wraps(f)
     def set_default_path(self, *args, **kwargs):
         if not self._initialized:
             logger.info('Working folder not initialized! Initialize working folder to default.')
@@ -197,19 +197,19 @@ def check_path_init(f):
     return set_default_path
 
 
-@decorator
 def standardize_name(f):
+    @functools.wraps(f)
     def func(self, name: str, *args, **kwargs):
         if name is not None:
             name = name.replace(' ', '-')
 
-        return f(self, name, *args, **kwargs)
+        f(self, name, *args, **kwargs)
 
     return func
 
 
-@decorator
 def distributed_collect(f):
+    @functools.wraps(f)
     def func(self, name: str, value: T.Tensor, *args, **kwargs):
         if self.distributed:
             assert isinstance(value, T.Tensor), 'value must be a Tensor in distributed mode'
@@ -220,8 +220,8 @@ def distributed_collect(f):
     return func
 
 
-@decorator
 def distributed_flush(f):
+    @functools.wraps(f)
     def func(self, *args, **kwargs):
         if self.distributed and self.rank != 0:
             return

@@ -30,9 +30,8 @@ def setup_package():
             'Programming Language :: Python :: 3.7'
         ],
         platforms=['Windows', 'Linux'],
-        packages=find_packages(exclude=['docs', 'doc']),
-        install_requires=['matplotlib', 'numpy', 'imageio', 'tensorboard',
-                          'git-python', 'easydict', 'pandas', 'decorator'],
+        packages=find_packages(exclude=['docs']),
+        install_requires=['matplotlib', 'numpy', 'imageio', 'tensorboard', 'git-python', 'easydict', 'pandas'],
         project_urls={
             'Bug Reports': 'https://github.com/justanhduc/neural-monitor/issues',
             'Source': 'https://github.com/justanhduc/neural-monitor',

@@ -8,5 +8,3 @@ tensorboard
 imageio
 git-python
 pandas
-decorator
-easydict
