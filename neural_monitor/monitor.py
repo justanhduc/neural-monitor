@@ -432,6 +432,7 @@ class Monitor:
         self.rank = T.distributed.get_rank() if self.distributed else 0
         self.world_size = T.distributed.get_world_size() if self.distributed else 1
         if self.distributed and self.rank != 0:
+            logging.disable()
             return
 
         if with_git:
