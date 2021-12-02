@@ -1756,7 +1756,7 @@ class Monitor:
             param_total += param_size
             buffer_total += buffer_size
         rows += [['---'] * len(rows[0])]
-        rows += [['Total', str(param_total), str(buffer_total), '-', '-']]
+        rows += [['Total', '-', str(param_total), str(buffer_total), '-']]
 
         # Print table.
         widths = [max(len(cell) for cell in column) for column in zip(*rows)]
