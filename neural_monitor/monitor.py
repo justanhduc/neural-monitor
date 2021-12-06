@@ -148,7 +148,7 @@ def collect_tracked_variables(name=None, return_name=False):
         the tracked variables.
     """
 
-    assert isinstance(name, (str, list, tuple)) or name is None, 'name must either be None, a tring, or a list/tuple.'
+    assert isinstance(name, (str, list, tuple)) or name is None, 'name must either be None, a string, or a list/tuple.'
     if name is None:
         tracked = ([n for n in _TRACKS.keys()], [val for val in _TRACKS.values()]) if return_name \
             else [val for val in _TRACKS.values()]
@@ -161,7 +161,7 @@ def collect_tracked_variables(name=None, return_name=False):
         return tracked
 
 
-def get_tracked_variables() -> Dict:
+def get_tracked_variables():
     """
     Retrieves the values of tracked variables.
 
@@ -173,9 +173,9 @@ def get_tracked_variables() -> Dict:
     dict = collections.OrderedDict()
     for n, v in zip(name, vars):
         if isinstance(v, (list, tuple)):
-            dict[n] = [val.item() if val.numel() == 1 else utils.to_numpy(val) for val in v]
+            dict[n] = [val for val in v] if len(v) > 1 else v[0]
         else:
-            dict[n] = v.item() if v.numel() == 1 else utils.to_numpy(v)
+            dict[n] = v
     return dict
 
 
@@ -1009,8 +1009,14 @@ class Monitor:
 
     @distributed_collect
     @standardize_name
-    def plot(self, name: str, value: Union[T.Tensor, np.ndarray, float], smooth: Optional[float] = 0,
-             filter_outliers: Optional[bool] = True, precision: Optional[int] = 5, **kwargs):
+    def plot(self,
+             name: str,
+             value: Union[T.Tensor, np.ndarray, float],
+             smooth: Optional[float] = 0,
+             filter_outliers: Optional[bool] = True,
+             precision: Optional[int] = 5,
+             display: Optional[bool] = True,
+             **kwargs):
         """
         schedules a plot of scalar value.
         A :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
@@ -1030,6 +1036,9 @@ class Monitor:
         :param precision:
             number of digits after decimal.
             Default: ``5``.
+        :param display:
+            whether to print this value.
+            Default: True.
         :param kwargs:
             additional options to tensorboard.
         :return: ``None``.
@@ -1038,6 +1047,7 @@ class Monitor:
         self._options[name]['smooth'] = smooth
         self._options[name]['filter_outliers'] = filter_outliers
         self._options[name]['precision'] = precision
+        self._options[name]['display'] = display
         if isinstance(value, (list, tuple)):
             value = sum(value) / len(value)
 
@@ -1202,6 +1212,7 @@ class Monitor:
             smooth = self._options[name].get('smooth')
             filter_outliers = self._options[name].get('filter_outliers')
             prec = self._options[name].get('precision')
+            display = self._options[name].get('display')
 
             # csv summary
             tmp = pd.DataFrame(val.values(), index=val.keys(), columns=[name], dtype='float32')
@@ -1228,7 +1239,9 @@ class Monitor:
                 if not (np.any(np.isnan(interval)) or np.any(np.isinf(interval))):
                     plt.ylim(interval)
 
-            prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
+            if display:
+                prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
+
             fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
             fig.clear()
         plt.close()
