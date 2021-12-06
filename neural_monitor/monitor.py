@@ -120,7 +120,7 @@ def track(name: str, x: Union[T.Tensor, T.nn.Module], direction: Optional[str] =
             def _backward_hook(module, grad_input, grad_output):
                 _TRACKS['grad_' + name + '_output'] = tuple([grad_out.detach() for grad_out in grad_output])
 
-            hooks['grad_' + name + '_output'] = x.register_backward_hook(_backward_hook)
+            hooks['grad_' + name + '_output'] = x.register_full_backward_hook(_backward_hook)
     else:
         if direction in ('forward', 'all', None):
             _TRACKS[name] = x.detach()
