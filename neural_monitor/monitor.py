@@ -1,4 +1,3 @@
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import matplotlib
 import matplotlib.pyplot as plt
@@ -426,7 +425,7 @@ class Monitor:
         self.print_freq = print_freq
         self.num_iters = num_iters
         self.use_tensorboard = use_tensorboard
-        self.current_folder = current_folder
+        self.current_folder = os.path.abspath(current_folder) if current_folder is not None else None
         self.with_git = with_git
         self.distributed = T.distributed.is_initialized()
         self.rank = T.distributed.get_rank() if self.distributed else 0
@@ -1756,7 +1755,7 @@ class Monitor:
             param_total += param_size
             buffer_total += buffer_size
         rows += [['---'] * len(rows[0])]
-        rows += [['Total', '-', str(param_total), str(buffer_total), '-']]
+        rows += [['Total', '-', str(param_total), str(buffer_total), '-', '-']]
 
         # Print table.
         widths = [max(len(cell) for cell in column) for column in zip(*rows)]
