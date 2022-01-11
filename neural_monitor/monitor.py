@@ -604,7 +604,7 @@ class Monitor:
         Examples
         --------
 
-        >>> from neuralnet_pytorch import monitor as mon
+        >>> from neural_monitor import monitor as mon
         >>> mon.print_freq = 1000
         >>> num_epochs = 10
         >>> for epoch in mon.iter_epoch(range(mon.epoch, num_epochs))
@@ -638,7 +638,7 @@ class Monitor:
         Examples
         --------
 
-        >>> from neuralnet_pytorch import monitor as mon
+        >>> from neural_monitor import monitor as mon
         >>> mon.print_freq = 1000
         >>> data_loader = ...
         >>> num_epochs = 10
@@ -1726,6 +1726,7 @@ class Monitor:
         hooks += [mod.register_forward_hook(post_hook) for mod in module.modules()]
 
         # Run module.
+        module.eval()
         module(*inputs)
         for hook in hooks:
             hook.remove()
