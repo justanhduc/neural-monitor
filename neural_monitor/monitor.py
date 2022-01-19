@@ -465,6 +465,9 @@ class Monitor:
         self.image_folder = os.path.join(self.current_folder, 'images')
         os.makedirs(self.image_folder, exist_ok=True)
 
+        self.mesh_folder = os.path.join(self.current_folder, 'meshes')
+        os.makedirs(self.mesh_folder, exist_ok=True)
+
         self.hist_folder = os.path.join(self.current_folder, 'histograms')
         os.makedirs(self.hist_folder, exist_ok=True)
 
@@ -1203,6 +1206,39 @@ class Monitor:
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'hist/')
             self.writer.add_histogram(prefix + name.replace(' ', '-'), value, global_step=self.iter, **kwargs)
+
+    def save_meshes(self, name, meshes=None, verts=None, faces=None, verts_uvs=None, faces_uvs=None, texture_map=None):
+        try:
+            from pytorch3d import io
+            from pytorch3d.structures import Meshes
+            from pytorch3d.renderer import TexturesUV
+        except ModuleNotFoundError:
+            logger.info('Pytorch3D must be installed to use this function.')
+            return
+
+        if meshes is not None:
+            assert isinstance(meshes, Meshes)
+            assert verts is None and faces is None and verts_uvs is None and faces_uvs is None, \
+                '`meshes` and other arguments are mutually exclusive'
+
+        if meshes is None:
+            filename = os.path.join(self.mesh_folder, f'{name}.obj')
+            io.save_obj(filename, verts, faces, verts_uvs=verts_uvs, faces_uvs=faces_uvs, texture_map=texture_map)
+        else:
+            verts = meshes.verts_list()
+            faces = meshes.faces_list()
+            verts_uvs = [None] * len(verts)
+            faces_uvs = [None] * len(verts)
+            texture_map = [None] * len(verts)
+            if meshes.textures is not None:
+                assert isinstance(meshes.textures, TexturesUV)
+                verts_uvs = meshes.textures.verts_uvs_list()
+                faces_uvs = meshes.textures.faces_uvs_list()
+                texture_map = meshes.textures.maps_list()
+
+            for idx, (v, f, v_uv, f_uv, tex) in enumerate(zip(verts, faces, verts_uvs, faces_uvs, texture_map)):
+                filename = os.path.join(self.mesh_folder, f'{name}-{idx}.obj')
+                io.save_obj(filename, v, f, verts_uvs=v_uv, faces_uvs=f_uv, texture_map=tex)
 
     def _plot(self, nums, prints):
         summary = pd.DataFrame()
