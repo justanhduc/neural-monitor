@@ -1222,8 +1222,19 @@ class Monitor:
                 '`meshes` and other arguments are mutually exclusive'
 
         if meshes is None:
-            filename = os.path.join(self.mesh_folder, f'{name}.obj')
-            io.save_obj(filename, verts, faces, verts_uvs=verts_uvs, faces_uvs=faces_uvs, texture_map=texture_map)
+            if len(verts.shape) == len(faces.shape) == 2:
+                filename = os.path.join(self.mesh_folder, f'{name}.obj')
+                io.save_obj(filename, verts, faces, verts_uvs=verts_uvs, faces_uvs=faces_uvs, texture_map=texture_map)
+                return
+
+            if len(verts.shape) == len(faces.shape) == 3:
+                assert verts.shape[0] == faces.shape[0]
+                if verts_uvs is not None:
+                    assert verts_uvs.shape[0] == verts.shape[0] == faces_uvs.shape[0] == texture_map.shape[0]
+                else:
+                    verts_uvs = faces_uvs = texture_map = [None] * verts.shape[0]
+            else:
+                raise NotImplementedError
         else:
             verts = meshes.verts_list()
             faces = meshes.faces_list()
@@ -1236,9 +1247,9 @@ class Monitor:
                 faces_uvs = meshes.textures.faces_uvs_list()
                 texture_map = meshes.textures.maps_list()
 
-            for idx, (v, f, v_uv, f_uv, tex) in enumerate(zip(verts, faces, verts_uvs, faces_uvs, texture_map)):
-                filename = os.path.join(self.mesh_folder, f'{name}-{idx}.obj')
-                io.save_obj(filename, v, f, verts_uvs=v_uv, faces_uvs=f_uv, texture_map=tex)
+        for idx, (v, f, v_uv, f_uv, tex) in enumerate(zip(verts, faces, verts_uvs, faces_uvs, texture_map)):
+            filename = os.path.join(self.mesh_folder, f'{name}-{idx}.obj')
+            io.save_obj(filename, v, f, verts_uvs=v_uv, faces_uvs=f_uv, texture_map=tex)
 
     def _plot(self, nums, prints):
         summary = pd.DataFrame()
