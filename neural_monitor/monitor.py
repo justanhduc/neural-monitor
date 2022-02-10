@@ -1251,89 +1251,91 @@ class Monitor:
 
     def _plot(self, nums, prints):
         summary = pd.DataFrame()
-        fig = plt.figure()
-        plt.xlabel('iteration')
-        for name, val in list(nums.items()):
-            smooth = self._options[name].get('smooth')
-            filter_outliers = self._options[name].get('filter_outliers')
-            prec = self._options[name].get('precision')
-            display = self._options[name].get('display')
+        with plt.xkcd():
+            fig = plt.figure()
+            plt.xlabel('iteration')
+            for name, val in list(nums.items()):
+                smooth = self._options[name].get('smooth')
+                filter_outliers = self._options[name].get('filter_outliers')
+                prec = self._options[name].get('precision')
+                display = self._options[name].get('display')
 
-            # csv summary
-            tmp = pd.DataFrame(val.values(), index=val.keys(), columns=[name], dtype='float32')
-            summary = summary.join(tmp, how='outer')
+                # csv summary
+                tmp = pd.DataFrame(val.values(), index=val.keys(), columns=[name], dtype='float32')
+                summary = summary.join(tmp, how='outer')
 
-            # plot
-            self._num_since_beginning[name].update(val)
-            plt.ylabel(name)
-            x_vals = sorted(self._num_since_beginning[name].keys())
-            y_vals = [self._num_since_beginning[name][x] for x in x_vals]
-            max_, min_, med_, mean_ = np.max(y_vals), np.min(y_vals), np.median(y_vals), np.mean(y_vals)
-            argmax_, argmin_ = np.argmax(y_vals), np.argmin(y_vals)
-            plt.title('max: {:.8f} at iter {} min: {:.8f} at iter {} \nmedian: {:.8f} mean: {:.8f}'
-                      .format(max_, x_vals[argmax_], min_, x_vals[argmin_], med_, mean_))
+                # plot
+                self._num_since_beginning[name].update(val)
+                plt.ylabel(name)
+                x_vals = sorted(self._num_since_beginning[name].keys())
+                y_vals = [self._num_since_beginning[name][x] for x in x_vals]
+                max_, min_, med_, mean_ = np.max(y_vals), np.min(y_vals), np.median(y_vals), np.mean(y_vals)
+                argmax_, argmin_ = np.argmax(y_vals), np.argmin(y_vals)
+                plt.title('max: {:.8f} at iter {} min: {:.8f} at iter {} \nmedian: {:.8f} mean: {:.8f}'
+                          .format(max_, x_vals[argmax_], min_, x_vals[argmin_], med_, mean_))
 
-            x_vals, y_vals = np.array(x_vals), np.array(y_vals)
-            y_vals_smoothed = utils.smooth(y_vals, smooth)[:x_vals.shape[0]] if smooth else y_vals
-            plt.plot(x_vals, y_vals_smoothed)
-            if filter_outliers:
-                inlier_indices = ~utils.is_outlier(y_vals)
-                y_vals_filtered = y_vals[inlier_indices]
-                min_, max_ = np.min(y_vals_filtered), np.max(y_vals_filtered)
-                interval = (.9 ** np.sign(min_) * min_, 1.1 ** np.sign(max_) * max_)
-                if not (np.any(np.isnan(interval)) or np.any(np.isinf(interval))):
-                    plt.ylim(interval)
+                x_vals, y_vals = np.array(x_vals), np.array(y_vals)
+                y_vals_smoothed = utils.smooth(y_vals, smooth)[:x_vals.shape[0]] if smooth else y_vals
+                plt.plot(x_vals, y_vals_smoothed)
+                if filter_outliers:
+                    inlier_indices = ~utils.is_outlier(y_vals)
+                    y_vals_filtered = y_vals[inlier_indices]
+                    min_, max_ = np.min(y_vals_filtered), np.max(y_vals_filtered)
+                    interval = (.9 ** np.sign(min_) * min_, 1.1 ** np.sign(max_) * max_)
+                    if not (np.any(np.isnan(interval)) or np.any(np.isinf(interval))):
+                        plt.ylim(interval)
 
-            if display:
-                prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
+                if display:
+                    prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
 
-            fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
-            fig.clear()
-        plt.close()
+                fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
+                fig.clear()
+            plt.close()
         csv_file = os.path.join(self.current_folder, 'summary.csv')
         summary.sort_index()  # makes sure the rows are in chronological order
         summary.to_csv(csv_file, mode='a', header=True if not os.path.exists(csv_file) else False)
 
     def _plot_matrix(self, mats):
-        fig = plt.figure()
-        for name, val in list(mats.items()):
-            ax = fig.add_subplot(111)
-            im = ax.imshow(val)
-            fig.colorbar(im)
+        with plt.xkcd():
+            fig = plt.figure()
+            for name, val in list(mats.items()):
+                ax = fig.add_subplot(111)
+                im = ax.imshow(val)
+                fig.colorbar(im)
 
-            labels = self._options[name].get('labels')
-            ax.set_xticks(np.arange(len(val)))
-            ax.set_yticks(np.arange(len(val)))
-            if labels is not None:
-                if isinstance(labels[0], (list, tuple)):
-                    ax.set_xticklabels(labels[0])
-                    ax.set_yticklabels(labels[1])
-                else:
-                    ax.set_xticklabels(labels)
-                    ax.set_yticklabels(labels)
+                labels = self._options[name].get('labels')
+                ax.set_xticks(np.arange(len(val)))
+                ax.set_yticks(np.arange(len(val)))
+                if labels is not None:
+                    if isinstance(labels[0], (list, tuple)):
+                        ax.set_xticklabels(labels[0])
+                        ax.set_yticklabels(labels[1])
+                    else:
+                        ax.set_xticklabels(labels)
+                        ax.set_yticklabels(labels)
 
-                # Rotate the tick labels and set their alignment.
-                plt.setp(ax.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
+                    # Rotate the tick labels and set their alignment.
+                    plt.setp(ax.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
 
-            ax.set_ylim([-.5, len(val) - .5])
+                ax.set_ylim([-.5, len(val) - .5])
 
-            show_values = self._options[name].get('show_values')
-            if show_values:
-                # Loop over data dimensions and create text annotations.
-                for (i, j), z in np.ndenumerate(val):
-                    ax.text(j, i, z, ha='center', va='center', color='w')
+                show_values = self._options[name].get('show_values')
+                if show_values:
+                    # Loop over data dimensions and create text annotations.
+                    for (i, j), z in np.ndenumerate(val):
+                        ax.text(j, i, z, ha='center', va='center', color='w')
 
-            ax.set_title(name)
-            fig.savefig(os.path.join(self.plot_folder, name + '-matrix.jpg'), transparent=None)
+                ax.set_title(name)
+                fig.savefig(os.path.join(self.plot_folder, name + '-matrix.jpg'), transparent=None)
 
-            canvas = FigureCanvas(fig)
-            canvas.draw()
-            width, height = fig.get_size_inches() * fig.get_dpi()
-            img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
-            self.writer.add_image('matrix-' + name.replace(' ', '-'), img,
-                                  global_step=self.iter, dataformats='HWC')
-            fig.clear()
-        plt.close()
+                canvas = FigureCanvas(fig)
+                canvas.draw()
+                width, height = fig.get_size_inches() * fig.get_dpi()
+                img = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(int(height), int(width), 3)
+                self.writer.add_image('matrix-' + name.replace(' ', '-'), img,
+                                      global_step=self.iter, dataformats='HWC')
+                fig.clear()
+            plt.close()
 
     def _imwrite(self, imgs):
         for name, val in list(imgs.items()):
@@ -1370,31 +1372,32 @@ class Monitor:
                     raise NotImplementedError
 
     def _hist(self, nums):
-        fig = plt.figure()
-        for name, val in list(nums.items()):
-            n_bins = self._options[name].get('n_bins')
-            latest_only = self._options[name].get('latest_only')
-            if latest_only:
-                k = max(list(nums[name].keys()))
-                plt.hist(np.array(val[k]).flatten(), bins='auto')
-            else:
-                self._hist_since_beginning[name].update(val)
+        with plt.xkcd():
+            fig = plt.figure()
+            for name, val in list(nums.items()):
+                n_bins = self._options[name].get('n_bins')
+                latest_only = self._options[name].get('latest_only')
+                if latest_only:
+                    k = max(list(nums[name].keys()))
+                    plt.hist(np.array(val[k]).flatten(), bins='auto')
+                else:
+                    self._hist_since_beginning[name].update(val)
 
-                z_vals = np.array(list(self._hist_since_beginning[name].keys()))
-                vals = [np.array(self._hist_since_beginning[name][i]).flatten() for i in z_vals]
-                hists = [np.histogram(v, bins=n_bins) for v in vals]
-                y_vals = np.array([hists[i][0] for i in range(len(hists))])
-                x_vals = np.array([hists[i][1] for i in range(len(hists))])
-                x_vals = (x_vals[:, :-1] + x_vals[:, 1:]) / 2.
-                z_vals = np.tile(z_vals[:, None], (1, n_bins))
+                    z_vals = np.array(list(self._hist_since_beginning[name].keys()))
+                    vals = [np.array(self._hist_since_beginning[name][i]).flatten() for i in z_vals]
+                    hists = [np.histogram(v, bins=n_bins) for v in vals]
+                    y_vals = np.array([hists[i][0] for i in range(len(hists))])
+                    x_vals = np.array([hists[i][1] for i in range(len(hists))])
+                    x_vals = (x_vals[:, :-1] + x_vals[:, 1:]) / 2.
+                    z_vals = np.tile(z_vals[:, None], (1, n_bins))
 
-                ax = fig.gca(projection='3d')
-                surf = ax.plot_surface(x_vals, z_vals, y_vals, cmap=cm.coolwarm, linewidth=0, antialiased=False)
-                ax.view_init(45, -90)
-                fig.colorbar(surf, shrink=0.5, aspect=5)
-            fig.savefig(os.path.join(self.hist_folder, name.replace(' ', '_') + '_hist.jpg'))
-            fig.clear()
-        plt.close()
+                    ax = fig.gca(projection='3d')
+                    surf = ax.plot_surface(x_vals, z_vals, y_vals, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+                    ax.view_init(45, 90)
+                    fig.colorbar(surf, shrink=0.5, aspect=5)
+                fig.savefig(os.path.join(self.hist_folder, name.replace(' ', '_') + '_hist.jpg'))
+                fig.clear()
+            plt.close()
 
     def _scatter(self, points):
         fig = plt.figure()
