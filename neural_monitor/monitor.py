@@ -244,6 +244,20 @@ def standardize_image(img):
     return img
 
 
+def _convert_time_human_readable(t):
+    if t < 3600:
+        time_unit = 'mins'
+        t /= 60.
+    elif 86400 > t >= 3600:
+        time_unit = 'hrs'
+        t /= 3600.
+    else:
+        time_unit = 'days'
+        t /= 86400
+
+    return t, time_unit
+
+
 class Monitor:
     """
     Collects statistics and displays the results using various backends.
@@ -319,6 +333,7 @@ class Monitor:
         self._num_iters = None
         self.print_freq = 1
         self.num_iters = None
+        self.num_epochs = None
         self.use_tensorboard = None
         self.current_folder = None
         self.plot_folder = None
@@ -371,7 +386,7 @@ class Monitor:
 
     def initialize(self, model_name: Optional[str] = None, root: Optional[str] = None,
                    current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
-                   num_iters: Optional[int] = None, prefix: Optional[str] = None,
+                   num_iters: Optional[int] = None, num_epochs: Optional[int] = None, prefix: Optional[str] = None,
                    use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
                    not_found_warn: bool = True) -> None:
         """
@@ -397,6 +412,10 @@ class Monitor:
         :param num_iters:
             number of iterations per epoch.
             If not provided, it will be calculated after one epoch.
+            Default: ``None``.
+        :param num_epochs:
+            total number of epochs.
+            If provided, ETA will be shown.
             Default: ``None``.
         :param prefix:
             a common prefix that is shared between folder names of different runs.
@@ -424,6 +443,7 @@ class Monitor:
         self._num_iters = num_iters
         self.print_freq = print_freq
         self.num_iters = num_iters
+        self.num_epochs = num_epochs
         self.use_tensorboard = use_tensorboard
         self.current_folder = os.path.abspath(current_folder) if current_folder is not None else None
         self.with_git = with_git
@@ -1447,24 +1467,21 @@ class Monitor:
                 f.close()
             lock.release_write()
 
-            iter_show = 'Epoch {} Iteration {}/{} ({:.2f}%)'.format(
-                epoch + 1, it % self.num_iters, self.num_iters,
-                (it % self.num_iters) / self.num_iters * 100.) if self.num_iters \
-                else 'Epoch {} Iteration {}'.format(epoch + 1, it)
+            it_percentage = (it % self.num_iters) / self.num_iters if self.num_iters else None
+            iter_show = f'Epoch {epoch + 1} Iteration {it % self.num_iters}/{self.num_iters} ' \
+                        f'({it_percentage * 100:.2f}%)' if self.num_iters else f'Epoch {epoch + 1} Iteration {it}'
 
             elapsed_time = time.time() - self._timer
-            if elapsed_time < 3600:
-                time_unit = 'mins'
-                elapsed_time /= 60.
-            elif 86400 > elapsed_time >= 3600:
-                time_unit = 'hrs'
-                elapsed_time /= 3600.
+            if self.num_iters and self.num_epochs:
+                eta = elapsed_time / (epoch + it_percentage + 1e-8) * (self.num_epochs - (epoch + it_percentage))
+                eta, eta_unit = _convert_time_human_readable(eta)
+                eta_str = f'ETA {eta:.2f}{eta_unit}'
             else:
-                time_unit = 'days'
-                elapsed_time /= 86400
+                eta_str = f'ETA N/A'
 
-            elapsed_time_str = '{:.2f}'.format(elapsed_time) + time_unit
-            log = 'Elapsed time {} {}\t{}\t{}'.format(elapsed_time_str, self.current_run, iter_show, '\t'.join(prints))
+            elapsed_time, elapsed_time_unit = _convert_time_human_readable(elapsed_time)
+            elapsed_time_str = f'{elapsed_time:.2f}{elapsed_time_unit}'
+            log = f'{self.current_run}\t Elapsed time {elapsed_time_str} ({eta_str})\t{iter_show}\t' + '\t'.join(prints)
             root_logger.info(log)
             self._q.task_done()
 
