@@ -362,7 +362,8 @@ class Monitor:
             self._begin_iter_: collections.defaultdict(_spawn_defaultdict_ordereddict),
             self._end_iter_: collections.defaultdict(_spawn_defaultdict_ordereddict)
         }
-        self._timer = time.time()
+        self._init_time = None
+        self._last_flush_time = None
         self._io_method = {'pickle_save': self._save_pickle, 'txt_save': self._save_txt,
                            'torch_save': self._save_torch, 'pickle_load': self._load_pickle,
                            'txt_load': self._load_txt, 'torch_load': self._load_torch}
@@ -497,6 +498,7 @@ class Monitor:
 
         root_logger.info(f'Result folder: {self.current_folder}')
         self._initialized = True
+        self._init_time = time.time()
 
         if self.use_tensorboard:
             self.init_tensorboard()
@@ -1467,15 +1469,20 @@ class Monitor:
                 f.close()
             lock.release_write()
 
-            it_percentage = (it % self.num_iters) / self.num_iters if self.num_iters else None
+            epoch_perc = (it % self.num_iters) / self.num_iters if self.num_iters else None
             iter_show = f'Epoch {epoch + 1} Iteration {it % self.num_iters}/{self.num_iters} ' \
-                        f'({it_percentage * 100:.2f}%)' if self.num_iters else f'Epoch {epoch + 1} Iteration {it}'
+                        f'({epoch_perc * 100:.2f}%)' if self.num_iters else f'Epoch {epoch + 1} Iteration {it}'
 
-            elapsed_time = time.time() - self._timer
+            elapsed_time = time.time() - self._init_time
             if self.num_iters and self.num_epochs:
-                eta = elapsed_time / (epoch + it_percentage + 1e-8) * (self.num_epochs - (epoch + it_percentage))
+                if self._last_flush_time is None:
+                    self._last_flush_time = time.time()
+
+                process_time_between_flushes = time.time() - self._last_flush_time
+                eta = process_time_between_flushes / (epoch_perc + 1e-8) * (self.num_epochs - (epoch + epoch_perc))
                 eta, eta_unit = _convert_time_human_readable(eta)
                 eta_str = f'ETA {eta:.2f}{eta_unit}'
+                self._last_flush_time = time.time()
             else:
                 eta_str = f'ETA N/A'
 
@@ -1732,7 +1739,7 @@ class Monitor:
         self._iter = 0
         self._last_epoch = 0
         self.num_iters = self._num_iters
-        self._timer = time.time()
+        self._init_time = time.time()
 
     def read_log(self):
         """
