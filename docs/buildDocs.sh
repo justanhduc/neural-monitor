@@ -17,8 +17,9 @@ set -x
 ###################
 
 apt-get update
-apt-get -y install git rsync python3-sphinx python3-sphinx-rtd-theme cloud_sptheme
+apt-get -y install git rsync python3-sphinx python3-sphinx-rtd-theme
 
+pip install cloud_sptheme
 #####################
 # DECLARE VARIABLES #
 #####################
