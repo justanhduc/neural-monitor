@@ -332,9 +332,9 @@ class Monitor:
         self.model_name = None
         self.root = None
         self.prefix = None
-        self._num_iters = None
+        self._num_iters_per_epoch = None
         self.print_freq = 1
-        self.num_iters = None
+        self.num_iters_per_epoch = None
         self.num_epochs = None
         self.use_tensorboard = None
         self.current_folder = None
@@ -365,7 +365,7 @@ class Monitor:
             self._end_iter_: collections.defaultdict(_spawn_defaultdict_ordereddict)
         }
         self._init_time = None
-        self._last_flush_time = None
+        self._start_epoch = None
         self._io_method = {'pickle_save': self._save_pickle, 'txt_save': self._save_txt,
                            'torch_save': self._save_torch, 'pickle_load': self._load_pickle,
                            'txt_load': self._load_txt, 'torch_load': self._load_torch}
@@ -387,11 +387,19 @@ class Monitor:
 
         super().__setattr__(attr, val)
 
-    def initialize(self, model_name: Optional[str] = None, root: Optional[str] = None,
-                   current_folder: Optional[str] = None, print_freq: Optional[int] = 1,
-                   num_iters: Optional[int] = None, num_epochs: Optional[int] = None, prefix: Optional[str] = None,
-                   use_tensorboard: Optional[bool] = True, with_git: Optional[bool] = False,
-                   not_found_warn: bool = True) -> None:
+    def initialize(
+            self,
+            model_name: Optional[str] = None,
+            root: Optional[str] = None,
+            current_folder: Optional[str] = None,
+            print_freq: Optional[int] = 1,
+            num_iters_per_epoch: Optional[int] = None,
+            num_epochs: Optional[int] = None,
+            prefix: Optional[str] = None,
+            use_tensorboard: Optional[bool] = True,
+            with_git: Optional[bool] = False,
+            not_found_warn: bool = True
+    ) -> None:
         """
         Initializes the working directory for logging.
         If the training is distributed, this initialization should be called
@@ -412,7 +420,7 @@ class Monitor:
         :param print_freq:
             frequency of stdout.
             Default: 1.
-        :param num_iters:
+        :param num_iters_per_epoch:
             number of iterations per epoch.
             If not provided, it will be calculated after one epoch.
             Default: ``None``.
@@ -443,9 +451,9 @@ class Monitor:
         self.model_name = 'my-model' if model_name is None else model_name
         self.root = root
         self.prefix = prefix
-        self._num_iters = num_iters
+        self._num_iters_per_epoch = num_iters_per_epoch
         self.print_freq = print_freq
-        self.num_iters = num_iters
+        self.num_iters_per_epoch = num_iters_per_epoch
         self.num_epochs = num_epochs
         self.use_tensorboard = use_tensorboard
         self.current_folder = os.path.abspath(current_folder) if current_folder is not None else None
@@ -501,6 +509,7 @@ class Monitor:
         root_logger.info(f'Result folder: {self.current_folder}')
         self._initialized = True
         self._init_time = time.time()
+        self._start_epoch = self.epoch
 
         if self.use_tensorboard:
             self.init_tensorboard()
@@ -511,7 +520,7 @@ class Monitor:
         state_dict = {
             'iter': self.iter,
             'epoch': self.epoch,
-            'num_iters': self.num_iters,
+            'num_iters': self.num_iters_per_epoch,
             'num': self._num_since_beginning.copy(),
             'hist': self._hist_since_beginning.copy(),
             'options': self._options.copy()
@@ -531,9 +540,9 @@ class Monitor:
             if not_found_warn:
                 root_logger.warning('No record found for `hist`', exc_info=True)
 
-        if self.num_iters is None:
+        if self.num_iters_per_epoch is None:
             try:
-                self.num_iters = state_dict['num_iters']
+                self.num_iters_per_epoch = state_dict['num_iters']
             except KeyError:
                 if not_found_warn:
                     root_logger.warning('No record found for `num_iters`', exc_info=True)
@@ -547,8 +556,8 @@ class Monitor:
         try:
             self.epoch = state_dict['epoch']
         except KeyError:
-            if self.num_iters:
-                self.epoch = self.iter // self.num_iters
+            if self.num_iters_per_epoch:
+                self.epoch = self.iter // self.num_iters_per_epoch
             else:
                 if not_found_warn:
                     root_logger.warning('No record found for `epoch`', exc_info=True)
@@ -642,12 +651,12 @@ class Monitor:
         :meth:`~iter_batch`
         """
 
-        if self.num_iters:
-            self.iter = self.epoch * self.num_iters
+        if self.num_iters_per_epoch:
+            self.iter = self.epoch * self.num_iters_per_epoch
 
         for item in iterator:
-            if self.epoch > 0 and self.num_iters is None:
-                self.num_iters = self.iter // self.epoch
+            if self.epoch > 0 and self.num_iters_per_epoch is None:
+                self.num_iters_per_epoch = self.iter // self.epoch
 
             yield item
             self.epoch += 1
@@ -691,8 +700,8 @@ class Monitor:
             if self.iter % self.print_freq == 0:
                 self.flush()
         self.iter += 1
-        if self.num_iters:
-            self.epoch = self.iter // self.num_iters
+        if self.num_iters_per_epoch:
+            self.epoch = self.iter // self.num_iters_per_epoch
 
     @property
     def prefix(self) -> str:
@@ -797,8 +806,8 @@ class Monitor:
 
         assert epoch >= 0, 'Epoch must be non-negative'
         self._last_epoch = int(epoch)
-        if self.num_iters:
-            self.iter = self.epoch * self.num_iters
+        if self.num_iters_per_epoch:
+            self.iter = self.epoch * self.num_iters_per_epoch
 
     @property
     def num_stats(self):
@@ -1471,20 +1480,16 @@ class Monitor:
                 f.close()
             lock.release_write()
 
-            epoch_perc = (it % self.num_iters) / self.num_iters if self.num_iters else None
-            iter_show = f'Epoch {epoch + 1} Iteration {it % self.num_iters}/{self.num_iters} ' \
-                        f'({epoch_perc * 100:.2f}%)' if self.num_iters else f'Epoch {epoch + 1} Iteration {it}'
+            epoch_perc = (it % self.num_iters_per_epoch) / self.num_iters_per_epoch if self.num_iters_per_epoch else None
+            iter_show = f'Epoch {epoch + 1} Iteration {it % self.num_iters_per_epoch}/{self.num_iters_per_epoch} ' \
+                        f'({epoch_perc * 100:.2f}%)' if self.num_iters_per_epoch else f'Epoch {epoch + 1} Iteration {it}'
 
             elapsed_time = time.time() - self._init_time
-            if self.num_iters and self.num_epochs:
-                if self._last_flush_time is None:
-                    self._last_flush_time = time.time()
-
-                process_time_between_flushes = time.time() - self._last_flush_time
-                eta = process_time_between_flushes / (epoch_perc + 1e-8) * (self.num_epochs - (epoch + epoch_perc))
+            if self.num_iters_per_epoch and self.num_epochs:
+                eta = elapsed_time / (epoch - self._start_epoch + epoch_perc + 1e-8) \
+                      * (self.num_epochs - (epoch + epoch_perc))
                 eta, eta_unit = _convert_time_human_readable(eta)
                 eta_str = f'ETA {eta:.2f}{eta_unit}'
-                self._last_flush_time = time.time()
             else:
                 eta_str = f'ETA N/A'
 
@@ -1740,7 +1745,7 @@ class Monitor:
         self._dump_files = collections.OrderedDict()
         self._iter = 0
         self._last_epoch = 0
-        self.num_iters = self._num_iters
+        self.num_iters_per_epoch = self._num_iters_per_epoch
         self._init_time = time.time()
 
     def read_log(self):
