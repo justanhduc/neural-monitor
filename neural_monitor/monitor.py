@@ -245,7 +245,9 @@ def standardize_image(img):
 
 
 def _convert_time_human_readable(t):
-    if t < 3600:
+    if t < 60:
+        time_unit = 's'
+    elif 60 <= t < 3600:
         time_unit = 'mins'
         t /= 60.
     elif 86400 > t >= 3600:
