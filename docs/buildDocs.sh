@@ -45,7 +45,7 @@ git config --global user.name "Duc Nguyen"
 git config --global user.email "anhduc12101992@gmail.com"
 
 docroot=`mktemp -d`
-rsync -av "docs/_build/html/" "${docroot}/"
+rsync -av "docs/build/html/" "${docroot}/"
 
 pushd "${docroot}"
 
