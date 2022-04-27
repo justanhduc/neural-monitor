@@ -14,7 +14,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
-autodoc_mock_imports = ['torch', 'numpy', 'matplotlib', 'imageio']
+autodoc_mock_imports = ['torch', 'numpy', 'matplotlib', 'imageio', 'pandas']
 
 # -- Project information -----------------------------------------------------
 
@@ -29,6 +29,7 @@ author = 'Duc Nguyen'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'numpydoc',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.autodoc',
     "sphinx.ext.mathjax",

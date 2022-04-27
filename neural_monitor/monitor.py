@@ -401,7 +401,7 @@ class Monitor:
             not_found_warn: bool = True
     ) -> None:
         """
-        Initializes the working directory for logging.
+        initializes the working directory for logging.
         If the training is distributed, this initialization should be called
         after the distributed mode has been initialized.
 
@@ -648,7 +648,7 @@ class Monitor:
 
         See Also
         --------
-        :meth:`~iter_batch`
+        iter_batch
         """
 
         if self.num_iters_per_epoch:
@@ -684,7 +684,7 @@ class Monitor:
 
         See Also
         --------
-        :meth:`~iter_epoch`
+        iter_epoch
         """
 
         for item in iterator:
@@ -1542,7 +1542,7 @@ class Monitor:
 
     def save_to_table(self, table_name: str, **kwargs: Any):
         """
-        Write summary into a csv table.
+        writes summary into a csv table.
         Adapted from https://github.com/JonasGeiping/fullbatchtraining.
 
         :param table_name:
