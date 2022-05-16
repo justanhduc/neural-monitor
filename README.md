@@ -44,7 +44,7 @@ for epoch in mon.iter_epoch(range(n_epochs)):
 ...
 
 ```
-For more details on Neural Monitor's functionality, please check the [documentation](https://neural-monitor.readthedocs.io/en/latest/).
+For more details on Neural Monitor's functionality, please check the [documentation](https://www.justanhduc.tech/neural-monitor/).
 
 ## References
 
