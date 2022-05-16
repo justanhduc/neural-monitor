@@ -1481,7 +1481,8 @@ class Monitor:
             lock.release_write()
 
             epoch_perc = (it % self.num_iters_per_epoch) / self.num_iters_per_epoch if self.num_iters_per_epoch else None
-            iter_show = f'Epoch {epoch + 1} Iteration {it % self.num_iters_per_epoch}/{self.num_iters_per_epoch} ' \
+            epoch_show = f'Epoch {epoch + 1}/{self.num_epochs}' if self.num_epochs else f'Epoch {epoch + 1}'
+            iter_show = f'{epoch_show} Iteration {it % self.num_iters_per_epoch}/{self.num_iters_per_epoch} ' \
                         f'({epoch_perc * 100:.2f}%)' if self.num_iters_per_epoch else f'Epoch {epoch + 1} Iteration {it}'
 
             elapsed_time = time.time() - self._init_time
@@ -1496,6 +1497,7 @@ class Monitor:
             elapsed_time, elapsed_time_unit = _convert_time_human_readable(elapsed_time)
             elapsed_time_str = f'{elapsed_time:.2f}{elapsed_time_unit}'
             log = f'{self.current_run}\t Elapsed time {elapsed_time_str} ({eta_str})\t{iter_show}\t' + '\t'.join(prints)
+            log += '\n'
             root_logger.info(log)
             self._q.task_done()
 

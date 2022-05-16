@@ -3,7 +3,7 @@ import logging
 import threading
 import numpy as np
 
-log_formatter = logging.Formatter('%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s\n')
+log_formatter = logging.Formatter('%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s')
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
 
