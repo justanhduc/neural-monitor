@@ -1687,9 +1687,9 @@ class Monitor:
                 else:
                     name, ext = os.path.splitext(file)
                     file_name = os.path.normpath(name + '-%d' % version + ext)
-                    if file_name in versions:
+                    try:
                         obj = method(os.path.join(self.current_folder, file_name), **kwargs)
-                    else:
+                    except FileNotFoundError:
                         root_logger.warning(
                             'Version %d of %s is not found in %s' % (version, file, self.current_folder))
                         return None
