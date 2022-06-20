@@ -1286,7 +1286,7 @@ class Monitor:
         summary = pd.DataFrame()
         fig = plt.figure()
         plt.xlabel('iteration')
-        for name, val in list(nums.items()):
+        for name, val in nums.items():
             smooth = self._options[name].get('smooth')
             filter_outliers = self._options[name].get('filter_outliers')
             prec = self._options[name].get('precision')
@@ -1329,7 +1329,7 @@ class Monitor:
 
     def _plot_matrix(self, mats):
         fig = plt.figure()
-        for name, val in list(mats.items()):
+        for name, val in mats.items():
             ax = fig.add_subplot(111)
             im = ax.imshow(val)
             fig.colorbar(im)
@@ -1369,7 +1369,7 @@ class Monitor:
         plt.close()
 
     def _imwrite(self, imgs):
-        for name, val in list(imgs.items()):
+        for name, val in imgs.items():
             latest_only = self._options[name].get('latest_only')
 
             for itt, val in val.items():
@@ -1404,11 +1404,11 @@ class Monitor:
 
     def _hist(self, nums):
         fig = plt.figure()
-        for name, val in list(nums.items()):
+        for name, val in nums.items():
             n_bins = self._options[name].get('n_bins')
             latest_only = self._options[name].get('latest_only')
             if latest_only:
-                k = max(list(nums[name].keys()))
+                k = max(list(val.keys()))
                 plt.hist(np.array(val[k]).flatten(), bins='auto')
             else:
                 self._hist_since_beginning[name].update(val)
@@ -1431,7 +1431,7 @@ class Monitor:
 
     def _scatter(self, points):
         fig = plt.figure()
-        for name, vals in list(points.items()):
+        for name, vals in points.items():
             latest_only = self._options[name].get('latest_only')
             for itt, val in vals.items():
                 for ii, v in enumerate(val):
