@@ -1,0 +1,895 @@
+
+
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>monitor – Monitor Training of Neural Networks &#8212; Neural Monitor  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/cloud.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
+    
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+
+    
+    
+     
+        <script src="../_static/jquery.cookie.js"></script>
+    
+
+    
+     
+        <script src="../_static/cloud.base.js"></script>
+    
+
+    
+     
+        <script src="../_static/cloud.js"></script>
+    
+
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Welcome to Neural Monitor’s documentation!" href="../index.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+    <div class="relbar-top">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to Neural Monitor’s documentation!"
+             accesskey="P">previous</a> &nbsp; &nbsp;</li>
+    <li><a href="../index.html">Neural Monitor  documentation</a> &#187;</li>
+
+        <li class="nav-item nav-item-this"><a href=""><code class="xref py py-mod docutils literal notranslate"><span class="pre">monitor</span></code> – Monitor Training of Neural Networks</a></li> 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="monitor-monitor-training-of-neural-networks">
+<span id="monitor"></span><h1><code class="xref py py-mod docutils literal notranslate"><span class="pre">monitor</span></code> – Monitor Training of Neural Networks<a class="headerlink" href="#monitor-monitor-training-of-neural-networks" title="Permalink to this heading">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">neural_monitor.monitor.</span></span><span class="sig-name descname"><span class="pre">Monitor</span></span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collects statistics and displays the results using various backends.
+The collected stats are stored in <code class="docutils literal notranslate"><span class="pre">&lt;root&gt;/&lt;model_name&gt;/&lt;prefix&gt;&lt;#id&gt;</span></code>
+where #id is automatically assigned each time a new run starts.</p>
+<p class="rubric">Examples</p>
+<p>The following snippet shows how to plot smoothed training losses and
+save images from the current iteration, and then display them every 100 iterations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">neural_monitor</span> <span class="kn">import</span> <span class="n">monitor</span> <span class="k">as</span> <span class="n">mon</span>
+
+<span class="c1"># Tensorboard is turned on by default</span>
+<span class="n">mon</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">model_name</span><span class="o">=</span><span class="s1">&#39;foo-model&#39;</span><span class="p">,</span> <span class="n">print_freq</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">use_tensorboard</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="o">...</span>
+
+<span class="k">def</span> <span class="nf">calculate_loss</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+    <span class="o">...</span>
+    <span class="n">training_loss</span> <span class="o">=</span> <span class="o">...</span>
+    <span class="n">mon</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;training loss&#39;</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="mf">.99</span><span class="p">,</span> <span class="n">filter_outliers</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">calculate_acc</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+    <span class="n">accuracy</span> <span class="o">=</span> <span class="o">...</span>
+    <span class="n">mon</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;training acc&#39;</span><span class="p">,</span> <span class="n">accuracy</span><span class="p">,</span> <span class="n">smooth</span><span class="o">=</span><span class="mf">.99</span><span class="p">,</span> <span class="n">filter_outliers</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="o">...</span>
+<span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">mon</span><span class="o">.</span><span class="n">iter_epoch</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_epochs</span><span class="p">)):</span>
+    <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">mon</span><span class="o">.</span><span class="n">iter_batch</span><span class="p">(</span><span class="n">data_loader</span><span class="p">):</span>
+        <span class="n">pred</span> <span class="o">=</span> <span class="n">net</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">calculate_loss</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">)</span>
+        <span class="n">calculate_acc</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">)</span>
+        <span class="n">mon</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="s1">&#39;input images&#39;</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;images&#39;</span><span class="p">],</span> <span class="n">latest_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">mon</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="s1">&#39;checkpoint.pt&#39;</span><span class="p">,</span> <span class="p">{</span>
+        <span class="s1">&#39;model_state_dict&#39;</span><span class="p">:</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+        <span class="s1">&#39;optimizer_state_dict&#39;</span><span class="p">:</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+        <span class="o">...</span>
+    <span class="p">},</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;torch&#39;</span><span class="p">,</span> <span class="n">keep</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>  <span class="c1"># keep only 5 latest checkpoints</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Attributes<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>current_folder</strong></dt><dd><p>path to the current run.</p>
+</dd>
+<dt><strong>writer</strong></dt><dd><p>an instance of Tensorboard’s <code class="xref py py-class docutils literal notranslate"><span class="pre">SummaryWriter</span></code>
+when <cite>use_tensorboard</cite> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
+</dd>
+<dt><strong>plot_folder</strong></dt><dd><p>path to the folder containing the collected plots.</p>
+</dd>
+<dt><strong>file_folder</strong></dt><dd><p>path to the folder containing the collected files.</p>
+</dd>
+<dt><strong>image_folder</strong></dt><dd><p>path to the folder containing the collected images.</p>
+</dd>
+<dt><strong>hist_folder</strong></dt><dd><p>path to the folder containing the collected histograms.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p class="rubric">Methods</p>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.backup" title="neural_monitor.monitor.Monitor.backup"><code class="xref py py-obj docutils literal notranslate"><span class="pre">backup</span></code></a>(files_or_folders[, ignores, includes])</p></td>
+<td><p>saves a copy of the given files to <code class="xref py py-attr docutils literal notranslate"><span class="pre">current_folder</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.clear_hist_stats" title="neural_monitor.monitor.Monitor.clear_hist_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_hist_stats</span></code></a>(key)</p></td>
+<td><p>removes the collected statistics for histogram plot of the specified <cite>key</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.clear_num_stats" title="neural_monitor.monitor.Monitor.clear_num_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_num_stats</span></code></a>(key)</p></td>
+<td><p>removes the collected statistics for scalar plot of the specified <cite>key</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.dump" title="neural_monitor.monitor.Monitor.dump"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dump</span></code></a>(name, obj[, method, keep])</p></td>
+<td><p>saves the given object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.dump_model" title="neural_monitor.monitor.Monitor.dump_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dump_model</span></code></a>(network[, use_tensorboard])</p></td>
+<td><p>saves a string representation of the given neural net.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.dump_rep" title="neural_monitor.monitor.Monitor.dump_rep"><code class="xref py py-obj docutils literal notranslate"><span class="pre">dump_rep</span></code></a>(name, obj)</p></td>
+<td><p>saves a string representation of the given object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.flush" title="neural_monitor.monitor.Monitor.flush"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flush</span></code></a>()</p></td>
+<td><p>executes all the scheduled plots.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.hist" title="neural_monitor.monitor.Monitor.hist"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hist</span></code></a>(name, value[, n_bins, latest_only])</p></td>
+<td><p>schedules a histogram plot of (a batch of) points.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.imwrite" title="neural_monitor.monitor.Monitor.imwrite"><code class="xref py py-obj docutils literal notranslate"><span class="pre">imwrite</span></code></a>(name, value[, latest_only])</p></td>
+<td><p>schedules to save images.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.initialize" title="neural_monitor.monitor.Monitor.initialize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initialize</span></code></a>([model_name, root, ...])</p></td>
+<td><p>initializes the working directory for logging.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.iter_batch" title="neural_monitor.monitor.Monitor.iter_batch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_batch</span></code></a>(iterator)</p></td>
+<td><p>tracks training iteration and returns the item in <cite>iterator</cite>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.iter_epoch" title="neural_monitor.monitor.Monitor.iter_epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_epoch</span></code></a>(iterator)</p></td>
+<td><p>tracks training epoch and returns the item in <cite>iterator</cite>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.load" title="neural_monitor.monitor.Monitor.load"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load</span></code></a>(file[, method, version])</p></td>
+<td><p>loads from the given file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.plot" title="neural_monitor.monitor.Monitor.plot"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot</span></code></a>(name, value[, smooth, filter_outliers, ...])</p></td>
+<td><p>schedules a plot of scalar value.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.plot_matrix" title="neural_monitor.monitor.Monitor.plot_matrix"><code class="xref py py-obj docutils literal notranslate"><span class="pre">plot_matrix</span></code></a>(name, value[, labels, show_values])</p></td>
+<td><p>plots the given matrix with colorbar and labels if provided.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.print_module_summary" title="neural_monitor.monitor.Monitor.print_module_summary"><code class="xref py py-obj docutils literal notranslate"><span class="pre">print_module_summary</span></code></a>(module, inputs[, ...])</p></td>
+<td><p>Stolen from NVIDIA StyleGAN.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.read_log" title="neural_monitor.monitor.Monitor.read_log"><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_log</span></code></a>()</p></td>
+<td><p>reads the saved log file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.reset" title="neural_monitor.monitor.Monitor.reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset</span></code></a>()</p></td>
+<td><p>factory-resets the monitor object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.save_to_table" title="neural_monitor.monitor.Monitor.save_to_table"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_to_table</span></code></a>(table_name, **kwargs)</p></td>
+<td><p>writes summary into a csv table.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#neural_monitor.monitor.Monitor.scatter" title="neural_monitor.monitor.Monitor.scatter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scatter</span></code></a>(name, value[, latest_only])</p></td>
+<td><p>schedules a scattor plot of (a batch of) points.</p></td>
+</tr>
+</tbody>
+</table>
+<table class="docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><strong>add_hparam</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>add_metric</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>init_git</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>init_tensorboard</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>load_state</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>load_state_dict</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>plot_hparam</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>save_meshes</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>show_git_info</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>state_dict</strong></p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.backup">
+<span class="sig-name descname"><span class="pre">backup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files_or_folders</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignores</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">includes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.backup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.backup" title="Permalink to this definition">¶</a></dt>
+<dd><p>saves a copy of the given files to <code class="xref py py-attr docutils literal notranslate"><span class="pre">current_folder</span></code>.
+Accepts a str or list/tuple of file or folder names.
+You can backup your codes and/or config files for later use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>files_or_folders</strong> – files or folders to be saved.</p></li>
+<li><p><strong>ignores</strong> – files or patterns to ignore.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>includes</strong> – files or patterns to include.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.clear_hist_stats">
+<span class="sig-name descname"><span class="pre">clear_hist_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.clear_hist_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.clear_hist_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>removes the collected statistics for histogram plot of the specified <cite>key</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – the name of the histogram collection.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.clear_num_stats">
+<span class="sig-name descname"><span class="pre">clear_num_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.clear_num_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.clear_num_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>removes the collected statistics for scalar plot of the specified <cite>key</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> – the name of the scalar collection.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.dump">
+<span class="sig-name descname"><span class="pre">dump</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'pickle'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.dump"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.dump" title="Permalink to this definition">¶</a></dt>
+<dd><p>saves the given object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the file to be saved.</p></li>
+<li><p><strong>obj</strong> – object to be saved.</p></li>
+<li><p><strong>method</strong> – <p><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">callable</span></code>.
+If <code class="docutils literal notranslate"><span class="pre">callable</span></code>, it should be a custom method to dump object.
+There are 3 types of <code class="docutils literal notranslate"><span class="pre">str</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'pickle'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">pickle.dump()</span></code> to store object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'torch'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">torch.save()</span></code> to store object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'txt'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">numpy.savetxt()</span></code> to store object.</p>
+<p>Default: <code class="docutils literal notranslate"><span class="pre">'pickle'</span></code>.</p>
+</p></li>
+<li><p><strong>keep</strong> – the number of versions of the saved file to keep.
+Default: -1 (keeps only the latest version).</p></li>
+<li><p><strong>kwargs</strong> – additional keyword arguments to the underlying save function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.dump_model">
+<span class="sig-name descname"><span class="pre">dump_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">network</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.dump_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.dump_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>saves a string representation of the given neural net.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>network</strong> – neural net to be saved as string representation.</p></li>
+<li><p><strong>use_tensorboard</strong> – use tensorboard to save <cite>network</cite>’s graph.</p></li>
+<li><p><strong>args</strong> – additional arguments to Tensorboard’s <code class="xref py py-meth docutils literal notranslate"><span class="pre">SummaryWriter()</span></code>
+when <cite>use_tensorboard</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>kwargs</strong> – additional keyword arguments to Tensorboard’s <code class="xref py py-meth docutils literal notranslate"><span class="pre">SummaryWriter()</span></code>
+when <cite>~se_tensorboard</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.dump_rep">
+<span class="sig-name descname"><span class="pre">dump_rep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.dump_rep"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.dump_rep" title="Permalink to this definition">¶</a></dt>
+<dd><p>saves a string representation of the given object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the txt file containing the string representation.</p></li>
+<li><p><strong>obj</strong> – object to saved as string representation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.epoch">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">epoch</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#neural_monitor.monitor.Monitor.epoch" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the current epoch.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_last_epoch</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.flush"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.flush" title="Permalink to this definition">¶</a></dt>
+<dd><p>executes all the scheduled plots.
+Do not call this if using <a class="reference internal" href="#neural_monitor.monitor.Monitor" title="neural_monitor.monitor.Monitor"><code class="xref py py-class docutils literal notranslate"><span class="pre">Monitor</span></code></a>’s context manager mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.hist">
+<span class="sig-name descname"><span class="pre">hist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bins</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latest_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.hist"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.hist" title="Permalink to this definition">¶</a></dt>
+<dd><p>schedules a histogram plot of (a batch of) points.
+A <code class="xref py py-mod docutils literal notranslate"><span class="pre">matplotlib</span></code> figure will be rendered and saved every <code class="xref py py-attr docutils literal notranslate"><span class="pre">print_freq</span></code> iterations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the figure to be saved. Must be unique among plots.</p></li>
+<li><p><strong>value</strong> – any-dim tensor to be histogrammed.</p></li>
+<li><p><strong>n_bins</strong> – number of bins of the histogram.</p></li>
+<li><p><strong>latest_only</strong> – whether to save only the latest statistics or keep everything from beginning.</p></li>
+<li><p><strong>kwargs</strong> – additional options to tensorboard</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.hist_stats">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">hist_stats</span></span><a class="headerlink" href="#neural_monitor.monitor.Monitor.hist_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the collected tensors from beginning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_hist_since_beginning</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.imwrite">
+<span class="sig-name descname"><span class="pre">imwrite</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latest_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.imwrite"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.imwrite" title="Permalink to this definition">¶</a></dt>
+<dd><p>schedules to save images.
+The images will be rendered and saved every <code class="xref py py-attr docutils literal notranslate"><span class="pre">print_freq</span></code> iterations.
+There are some assumptions about input data:</p>
+<ul class="simple">
+<li><p>If the input is <code class="docutils literal notranslate"><span class="pre">'uint8'</span></code> it is an 8-bit image.</p></li>
+<li><p>If the input is <code class="docutils literal notranslate"><span class="pre">'float32'</span></code>, its values lie between <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
+<li><p>If the input has 3 dims, the shape is <code class="docutils literal notranslate"><span class="pre">[h,</span> <span class="pre">w,</span> <span class="pre">3]</span></code> or <code class="docutils literal notranslate"><span class="pre">[h,</span> <span class="pre">w,</span> <span class="pre">1]</span></code>.</p></li>
+<li><p>If the channel dim is different from 3 or 1, it will be considered as multiple gray images.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the figure to be saved. Must be unique among plots.</p></li>
+<li><p><strong>value</strong> – 2D, 3D or 4D tensor to be plotted.
+The expected shape is <code class="docutils literal notranslate"><span class="pre">(H,</span> <span class="pre">W)</span></code> for 2D tensor, <code class="docutils literal notranslate"><span class="pre">(H,</span> <span class="pre">W,</span> <span class="pre">C)</span></code> for 3D tensor and
+<code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">C,</span> <span class="pre">H,</span> <span class="pre">W)</span></code> for 4D tensor.
+If the number of channels is other than 3 or 1, each channel is saved as
+a gray image.</p></li>
+<li><p><strong>latest_only</strong> – whether to save only the latest statistics or keep everything from beginning.</p></li>
+<li><p><strong>kwargs</strong> – additional options to tensorboard.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.initialize">
+<span class="sig-name descname"><span class="pre">initialize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">print_freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iters_per_epoch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_epochs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorboard</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_git</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_found_warn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.initialize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.initialize" title="Permalink to this definition">¶</a></dt>
+<dd><p>initializes the working directory for logging.
+If the training is distributed, this initialization should be called
+after the distributed mode has been initialized.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_name</strong> – name of the experimented model.
+Default: <code class="docutils literal notranslate"><span class="pre">'my-model'</span></code>.</p></li>
+<li><p><strong>root</strong> – root path to store results.
+Default: <code class="docutils literal notranslate"><span class="pre">'results'</span></code>.</p></li>
+<li><p><strong>current_folder</strong> – the folder that the experiment is currently dump to.
+Note that if <cite>current_folder</cite> already exists,
+all the contents will be loaded.
+This option can be used for loading a trained model.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>print_freq</strong> – frequency of stdout.
+Default: 1.</p></li>
+<li><p><strong>num_iters_per_epoch</strong> – number of iterations per epoch.
+If not provided, it will be calculated after one epoch.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>num_epochs</strong> – total number of epochs.
+If provided, ETA will be shown.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>prefix</strong> – a common prefix that is shared between folder names of different runs.
+Default: <code class="docutils literal notranslate"><span class="pre">'run'</span></code>.</p></li>
+<li><p><strong>use_tensorboard</strong> – whether to use Tensorboard.
+Default: <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+<li><p><strong>with_git</strong> – whether to retrieve some Git information.
+Should be used only when the project is initialized with Git.
+Default: <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+<li><p><strong>not_found_warn</strong> – whether to warn when some statistics are missing from saved checkpoint.
+Default: <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.iter">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">iter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#neural_monitor.monitor.Monitor.iter" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the current iteration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_iter</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.iter_batch">
+<span class="sig-name descname"><span class="pre">iter_batch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.iter_batch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.iter_batch" title="Permalink to this definition">¶</a></dt>
+<dd><p>tracks training iteration and returns the item in <cite>iterator</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>iterator</strong> – the batch iterator.
+For e.g., <code class="docutils literal notranslate"><span class="pre">enumerator(loader)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a generator over <cite>iterator</cite>.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#neural_monitor.monitor.Monitor.iter_epoch" title="neural_monitor.monitor.Monitor.iter_epoch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_epoch</span></code></a></dt><dd></dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">neural_monitor</span> <span class="kn">import</span> <span class="n">monitor</span> <span class="k">as</span> <span class="n">mon</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mon</span><span class="o">.</span><span class="n">print_freq</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data_loader</span> <span class="o">=</span> <span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">num_epochs</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">mon</span><span class="o">.</span><span class="n">iter_epoch</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">)):</span>
+<span class="gp">... </span>    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">mon</span><span class="o">.</span><span class="n">iter_batch</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">data_loader</span><span class="p">)):</span>
+<span class="gp">... </span>        <span class="c1"># do something here</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.iter_epoch">
+<span class="sig-name descname"><span class="pre">iter_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.iter_epoch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.iter_epoch" title="Permalink to this definition">¶</a></dt>
+<dd><p>tracks training epoch and returns the item in <cite>iterator</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>iterator</strong> – the epoch iterator.
+For e.g., <code class="docutils literal notranslate"><span class="pre">range(num_epochs)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a generator over <cite>iterator</cite>.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#neural_monitor.monitor.Monitor.iter_batch" title="neural_monitor.monitor.Monitor.iter_batch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">iter_batch</span></code></a></dt><dd></dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">neural_monitor</span> <span class="kn">import</span> <span class="n">monitor</span> <span class="k">as</span> <span class="n">mon</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mon</span><span class="o">.</span><span class="n">print_freq</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">num_epochs</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="n">mon</span><span class="o">.</span><span class="n">iter_epoch</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">mon</span><span class="o">.</span><span class="n">epoch</span><span class="p">,</span> <span class="n">num_epochs</span><span class="p">))</span>
+<span class="gp">... </span>    <span class="c1"># do something here</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'pickle'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>loads from the given file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> – name of the saved file without version.</p></li>
+<li><p><strong>method</strong> – <p><code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">callable</span></code>.
+If <code class="docutils literal notranslate"><span class="pre">callable</span></code>, it should be a custom method to load object.
+There are 3 types of <code class="docutils literal notranslate"><span class="pre">str</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'pickle'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">pickle.dump()</span></code> to store object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'torch'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">torch.save()</span></code> to store object.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'txt'</span></code>: use <code class="xref py py-func docutils literal notranslate"><span class="pre">numpy.savetxt()</span></code> to store object.</p>
+<p>Default: <code class="docutils literal notranslate"><span class="pre">'pickle'</span></code>.</p>
+</p></li>
+<li><p><strong>version</strong> – the version of the saved file to load.
+Default: -1 (loads the latest version of the saved file).</p></li>
+<li><p><strong>kwargs</strong> – additional keyword arguments to the underlying load function.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.model_name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#neural_monitor.monitor.Monitor.model_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the name of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_model_name</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.num_stats">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">num_stats</span></span><a class="headerlink" href="#neural_monitor.monitor.Monitor.num_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the collected scalar statistics from beginning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_num_since_beginning</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_outliers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">precision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">display</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>schedules a plot of scalar value.
+A <code class="xref py py-mod docutils literal notranslate"><span class="pre">matplotlib</span></code> figure will be rendered and saved every <code class="xref py py-attr docutils literal notranslate"><span class="pre">print_freq</span></code> iterations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the figure to be saved. Must be unique among plots.</p></li>
+<li><p><strong>value</strong> – scalar value to be plotted.</p></li>
+<li><p><strong>smooth</strong> – a value between <code class="docutils literal notranslate"><span class="pre">0</span></code> and <code class="docutils literal notranslate"><span class="pre">1</span></code> to define the smoothing window size.
+See <code class="xref py py-func docutils literal notranslate"><span class="pre">smooth()</span></code>.
+Default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+<li><p><strong>filter_outliers</strong> – whether to filter out outliers in plot.
+This affects only the plot and not the raw statistics.
+Default: True.</p></li>
+<li><p><strong>precision</strong> – number of digits after decimal.
+Default: <code class="docutils literal notranslate"><span class="pre">5</span></code>.</p></li>
+<li><p><strong>display</strong> – whether to print this value.
+Default: True.</p></li>
+<li><p><strong>kwargs</strong> – additional options to tensorboard.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.plot_matrix">
+<span class="sig-name descname"><span class="pre">plot_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.plot_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.plot_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots the given matrix with colorbar and labels if provided.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the figure to be saved. Must be unique among plots.</p></li>
+<li><p><strong>value</strong> – matrix value to be plotted.</p></li>
+<li><p><strong>labels</strong> – labels of each axis.
+Can be a list/tuple of strings or a nested list/tuple.
+Defaults: None.</p></li>
+<li><p><strong>show_values</strong> – show values of the matrix</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.prefix">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">prefix</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#neural_monitor.monitor.Monitor.prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the prefix of saved folders.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-attr docutils literal notranslate"><span class="pre">_prefix</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.print_module_summary">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">print_module_summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_nesting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_redundant</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.print_module_summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.print_module_summary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stolen from NVIDIA StyleGAN.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> – a DNN module</p></li>
+<li><p><strong>inputs</strong> – sample inputs to the network</p></li>
+<li><p><strong>max_nesting</strong> – the maximum of submodules to be printed out</p></li>
+<li><p><strong>skip_redundant</strong> – whether to skip redundant parameters or not</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.read_log">
+<span class="sig-name descname"><span class="pre">read_log</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.read_log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.read_log" title="Permalink to this definition">¶</a></dt>
+<dd><p>reads the saved log file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>contents of the log file.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.reset">
+<span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>factory-resets the monitor object.
+This includes clearing all the collected data,
+set the iteration and epoch counters to 0,
+and reset the timer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.save_to_table">
+<span class="sig-name descname"><span class="pre">save_to_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.save_to_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.save_to_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>writes summary into a csv table.
+Adapted from <a class="reference external" href="https://github.com/JonasGeiping/fullbatchtraining">https://github.com/JonasGeiping/fullbatchtraining</a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table_name</strong> – name for the summary table.</p></li>
+<li><p><strong>kwargs</strong> – fields to write into the table</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="neural_monitor.monitor.Monitor.scatter">
+<span class="sig-name descname"><span class="pre">scatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">latest_only</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#Monitor.scatter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.Monitor.scatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>schedules a scattor plot of (a batch of) points.
+A 3D <code class="xref py py-mod docutils literal notranslate"><span class="pre">matplotlib</span></code> figure will be rendered and saved every <code class="xref py py-attr docutils literal notranslate"><span class="pre">print_freq</span></code> iterations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the figure to be saved. Must be unique among plots.</p></li>
+<li><p><strong>value</strong> – 2D or 3D tensor to be plotted. The last dim should be 3.</p></li>
+<li><p><strong>latest_only</strong> – whether to save only the latest statistics or keep everything from beginning.</p></li>
+<li><p><strong>kwargs</strong> – additional options to tensorboard.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-neural_monitor.monitor"></span><dl class="py function">
+<dt class="sig sig-object py" id="neural_monitor.monitor.collect_tracked_variables">
+<span class="sig-prename descclassname"><span class="pre">neural_monitor.monitor.</span></span><span class="sig-name descname"><span class="pre">collect_tracked_variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#collect_tracked_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.collect_tracked_variables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets tracked variable given name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the tracked variable.
+can be <code class="docutils literal notranslate"><span class="pre">str</span></code> or``list``/<code class="docutils literal notranslate"><span class="pre">tuple</span></code> of <code class="docutils literal notranslate"><span class="pre">str``s.</span>
+<span class="pre">If</span> <span class="pre">``None</span></code>, all the tracked variables will be returned.</p></li>
+<li><p><strong>return_name</strong> – whether to return the names of the tracked variables.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>the tracked variables.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neural_monitor.monitor.get_tracked_variables">
+<span class="sig-prename descclassname"><span class="pre">neural_monitor.monitor.</span></span><span class="sig-name descname"><span class="pre">get_tracked_variables</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#get_tracked_variables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.get_tracked_variables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves the values of tracked variables.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a dictionary containing the values of tracked variables
+associated with the given names.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="neural_monitor.monitor.track">
+<span class="sig-prename descclassname"><span class="pre">neural_monitor.monitor.</span></span><span class="sig-name descname"><span class="pre">track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.nn.Module</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">torch.Tensor</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch.nn.Module</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/neural_monitor/monitor.html#track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#neural_monitor.monitor.track" title="Permalink to this definition">¶</a></dt>
+<dd><p>An identity function that registers hooks to
+track the value and gradient of the specified tensor.</p>
+<p>Here is an example of how to track an intermediate output</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">neural_monitor</span> <span class="kn">import</span> <span class="n">track</span><span class="p">,</span> <span class="n">get_tracked_variables</span>
+<span class="kn">import</span> <span class="nn">nueralnet_pytorch</span> <span class="k">as</span> <span class="nn">nnt</span>
+
+<span class="nb">input</span> <span class="o">=</span> <span class="o">...</span>
+<span class="n">conv1</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span><span class="s1">&#39;op&#39;</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="s1">&#39;all&#39;</span><span class="p">)</span>
+<span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+<span class="n">intermediate</span> <span class="o">=</span> <span class="n">conv1</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">track</span><span class="p">(</span><span class="s1">&#39;conv2_output&#39;</span><span class="p">,</span> <span class="n">conv2</span><span class="p">(</span><span class="n">intermediate</span><span class="p">),</span> <span class="s1">&#39;all&#39;</span><span class="p">)</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">output</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">d_inter</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">intermediate</span><span class="p">,</span> <span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">d_out</span> <span class="o">=</span> <span class="n">T</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">output</span><span class="p">)</span>
+<span class="n">tracked</span> <span class="o">=</span> <span class="n">get_tracked_variables</span><span class="p">()</span>
+
+<span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">tracked</span><span class="p">[</span><span class="s1">&#39;conv2_output&#39;</span><span class="p">],</span> <span class="n">nnt</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+<span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">tracked</span><span class="p">[</span><span class="s1">&#39;grad_conv2_output&#39;</span><span class="p">]),</span> <span class="n">nnt</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">d_out</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">tracked</span><span class="p">[</span><span class="s1">&#39;op&#39;</span><span class="p">],</span> <span class="n">nnt</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">intermediate</span><span class="p">))</span>
+<span class="k">for</span> <span class="n">d_inter_</span><span class="p">,</span> <span class="n">tracked_d_inter_</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">d_inter</span><span class="p">,</span> <span class="n">tracked</span><span class="p">[</span><span class="s1">&#39;grad_op_output&#39;</span><span class="p">]):</span>
+    <span class="n">testing</span><span class="o">.</span><span class="n">assert_allclose</span><span class="p">(</span><span class="n">tracked_d_inter_</span><span class="p">,</span> <span class="n">nnt</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">d_inter_</span><span class="p">))</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> – name of the tracked tensor.</p></li>
+<li><p><strong>x</strong> – tensor or module to be tracked.
+If module, the output of the module will be tracked.</p></li>
+<li><p><strong>direction</strong> – <p>there are 4 options</p>
+<p><code class="docutils literal notranslate"><span class="pre">None</span></code>: tracks only value.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'forward'</span></code>: tracks only value.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'backward'</span></code>: tracks only gradient.</p>
+<p><code class="docutils literal notranslate"><span class="pre">'all'</span></code>: tracks both value and gradient.</p>
+<p>Default: <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><cite>x</cite>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div class="sphinxprev">
+    <h4>Previous page</h4>
+    <p class="topless"><a href="../index.html"
+                          title="Previous page">&larr; Welcome to Neural Monitor’s documentation!</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/manual/monitor.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+    
+    
+        <div class="sidebar-toggle-group no-js">
+            
+            <button class="sidebar-toggle" id="sidebar-hide" title="Hide the sidebar menu">
+                 «
+                <span class="show-for-small">hide menu</span>
+                
+            </button>
+            <button class="sidebar-toggle" id="sidebar-show" title="Show the sidebar menu">
+                
+                <span class="show-for-small">menu</span>
+                <span class="hide-for-small">sidebar</span>
+                 »
+            </button>
+        </div>
+    
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to Neural Monitor’s documentation!"
+             >previous</a> &nbsp; &nbsp;</li>
+    <li><a href="../index.html">Neural Monitor  documentation</a> &#187;</li>
+
+        <li class="nav-item nav-item-this"><a href=""><code class="xref py py-mod docutils literal notranslate"><span class="pre">monitor</span></code> – Monitor Training of Neural Networks</a></li> 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Duc Nguyen.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 5.0.2.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>
