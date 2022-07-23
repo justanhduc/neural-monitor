@@ -212,8 +212,10 @@ def distributed_collect(f):
     def func(self, name: str, value: T.Tensor, *args, **kwargs):
         if self.distributed:
             assert isinstance(value, T.Tensor), 'value must be a Tensor in distributed mode'
-            tensor_list = [torch.zeros_like(value, dtype=torch.int64) for _ in range(self.world_size)]
+            tensor_list = [torch.zeros_like(value) for _ in range(self.world_size)]
             T.distributed.all_gather(tensor_list, value)
+            value = tensor_list
+
         return f(self, name, value, *args, **kwargs)
 
     return func
@@ -227,6 +229,41 @@ def distributed_flush(f):
         return f(self, *args, **kwargs)
 
     return func
+
+
+def reduce_one(values):
+    if isinstance(values, (list, tuple)):
+        values = values[0]
+
+    return values
+
+
+def reduce_cat(values):
+    if isinstance(values, (list, tuple)):
+        values = T.cat(values)
+
+    return values
+
+
+def reduce_stack(values):
+    if isinstance(values, (list, tuple)):
+        values = T.stack(values)
+
+    return values
+
+
+def reduce_sum(values):
+    if isinstance(values, (list, tuple)):
+        values = sum(values)
+
+    return values
+
+
+def reduce_mean(values):
+    if isinstance(values, (list, tuple)):
+        values = sum(values) / len(values)
+
+    return values
 
 
 def standardize_image(img):
@@ -461,6 +498,7 @@ class Monitor:
         self.distributed = T.distributed.is_initialized()
         self.rank = T.distributed.get_rank() if self.distributed else 0
         self.world_size = T.distributed.get_world_size() if self.distributed else 1
+        self.iter_step = self.world_size if self.distributed else 1
         if self.distributed and self.rank != 0:
             logging.disable()
             return
@@ -693,7 +731,9 @@ class Monitor:
                 if self.iter % self.print_freq == 0:
                     self.flush()
 
-            self.iter += 1
+            self.iter += self.iter_step
+            if self.distributed:
+                T.distributed.barrier()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.print_freq:
@@ -1025,6 +1065,7 @@ class Monitor:
     @standardize_name
     def add_hparam(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
         if name not in self._options[self._hparams].keys():
+            value = reduce_one(value)
             if isinstance(value, (list, tuple)):  # in distributed mode
                 value = value[-1]
             if isinstance(value, T.Tensor):
@@ -1036,6 +1077,7 @@ class Monitor:
     @standardize_name
     def add_metric(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
         if name not in self._options[self._hparam_metrics].keys():
+            value = reduce_one(value)
             if isinstance(value, (list, tuple)):  # in distributed mode
                 value = value[-1]
             if isinstance(value, T.Tensor):
@@ -1084,8 +1126,7 @@ class Monitor:
         self._options[name]['filter_outliers'] = filter_outliers
         self._options[name]['precision'] = precision
         self._options[name]['display'] = display
-        if isinstance(value, (list, tuple)):
-            value = sum(value) / len(value)
+        value = reduce_mean(value)
 
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
@@ -1156,6 +1197,7 @@ class Monitor:
         self._options[name]['latest_only'] = latest_only
         if isinstance(value, (list, tuple)):
             value = [utils.to_numpy(v[None] if len(v.shape) == 2 else v) for v in value]
+            value = reduce_cat(value)
         else:
             if isinstance(value, T.Tensor):
                 value = utils.to_numpy(value)
@@ -1165,11 +1207,7 @@ class Monitor:
 
         self._points_since_last_flush[name][self.iter] = value
         if self.writer is not None:
-            if isinstance(value, list):
-                for i, v in enumerate(value):
-                    self.writer.add_mesh(f'{name}-i', v, global_step=self.iter, **kwargs)
-            else:
-                self.writer.add_mesh(name, value, global_step=self.iter, **kwargs)
+            self.writer.add_mesh(name, value, global_step=self.iter, **kwargs)
 
     @distributed_collect
     @standardize_name
@@ -1200,8 +1238,7 @@ class Monitor:
         """
 
         self._options[name]['latest_only'] = latest_only
-        value = np.concatenate([standardize_image(v) for v in value], 0) \
-            if isinstance(value, (list, tuple)) else standardize_image(value)  # handler for distributed training
+        value = standardize_image(reduce_cat(value))
         self._img_since_last_flush[name][self.iter] = value
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'image/')
@@ -1230,8 +1267,7 @@ class Monitor:
 
         self._options[name]['latest_only'] = latest_only
         self._options[name]['n_bins'] = n_bins
-        if isinstance(value, (list, tuple)):  # in distributed training
-            value = T.stack(value)
+        value = reduce_stack(value)
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
@@ -1247,6 +1283,32 @@ class Monitor:
             from pytorch3d.renderer import TexturesUV
         except ModuleNotFoundError:
             logger.info('Pytorch3D must be installed to use this function.')
+            return
+
+        if self.distributed:
+            assert meshes is None, 'Cannot save meshes in distributed modes'
+            verts_list = [T.zeros_like(verts) for _ in range(self.world_size)]
+            T.distributed.all_gather(verts_list, verts)
+            verts = T.cat(verts_list) if len(verts.shape) == 3 else T.stack(verts_list)
+
+            faces_list = [T.zeros_like(faces) for _ in range(self.world_size)]
+            T.distributed.all_gather(faces_list, faces)
+            faces = T.cat(faces_list) if len(faces.shape) == 3 else T.stack(faces_list)
+
+            if verts_uvs is not None:
+                verts_uvs_list = [T.zeros_like(verts_uvs) for _ in range(self.world_size)]
+                T.distributed.all_gather(verts_uvs_list, verts_uvs)
+                verts_uvs = T.cat(verts_uvs_list) if len(verts_uvs.shape) == 3 else T.stack(verts_uvs_list)
+
+                faces_uvs_list = [T.zeros_like(faces_uvs) for _ in range(self.world_size)]
+                T.distributed.all_gather(faces_uvs_list, faces_uvs)
+                faces_uvs = T.cat(faces_uvs_list) if len(faces_uvs.shape) == 3 else T.stack(faces_uvs_list)
+
+                texture_map_list = [T.zeros_like(texture_map) for _ in range(self.world_size)]
+                T.distributed.all_gather(texture_map_list, texture_map)
+                texture_map = T.cat(texture_map_list) if len(texture_map.shape) == 4 else T.stack(texture_map_list)
+
+        if self.rank != 0:
             return
 
         if meshes is not None:
