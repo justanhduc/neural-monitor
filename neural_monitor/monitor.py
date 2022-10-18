@@ -559,21 +559,33 @@ class Monitor:
             'iter': self.iter,
             'epoch': self.epoch,
             'num_iters': self.num_iters_per_epoch,
-            'num': self._num_since_beginning.copy(),
-            'hist': self._hist_since_beginning.copy(),
+            'num': list(self._num_since_beginning.keys()),
+            'hist': list(self._hist_since_beginning.keys()),
             'options': self._options.copy()
         }
         return state_dict
 
     def load_state_dict(self, state_dict: dict, not_found_warn: bool = True) -> None:
         try:
-            self.num_stats = state_dict['num']
+            if isinstance(state_dict['num'], dict):  # old way
+                self.num_stats = state_dict['num']
+            elif isinstance(state_dict['num'], list):
+                for key in state_dict['num']:
+                    saved_dict = self.read_log(os.path.join(self.current_folder, 'files', f'num_{key}.pkl'))
+                    self._num_since_beginning[key] = saved_dict
+
         except KeyError:
             if not_found_warn:
                 root_logger.warning('No record found for `num`', exc_info=True)
 
         try:
-            self.hist_stats = state_dict['hist']
+            if isinstance(state_dict['hist'], dict):  # old way
+                self.hist_stats = state_dict['hist']
+            elif isinstance(state_dict['hist'], list):
+                for key in state_dict['hist']:
+                    saved_dict = self.read_log(os.path.join(self.current_folder, 'files', f'hist_{key}.pkl'))
+                    self._hist_since_beginning[key] = saved_dict
+
         except KeyError:
             if not_found_warn:
                 root_logger.warning('No record found for `hist`', exc_info=True)
@@ -610,7 +622,7 @@ class Monitor:
         self.current_run = os.path.basename(self.current_folder)
 
         try:
-            log = self.read_log()
+            log = self.read_log(os.path.join(self.current_folder, 'files', self._log_file))
             self.load_state_dict(log, not_found_warn)
         except FileNotFoundError:
             if not_found_warn:
@@ -1539,7 +1551,17 @@ class Monitor:
                 state_dict['iter'] = it
                 state_dict['epoch'] = epoch
                 pkl.dump(state_dict, f, pkl.HIGHEST_PROTOCOL)
-                f.close()
+
+            for name in nums:  # save only dicts that have updates
+                dict_to_save = self._num_since_beginning[name]
+                with open(os.path.join(self.file_folder, f'num_{name}.pkl'), 'wb') as f:
+                    pkl.dump(dict_to_save, f)
+
+            for name in hists:
+                dict_to_save = self._hist_since_beginning[name]
+                with open(os.path.join(self.file_folder, f'hist_{name}.pkl'), 'wb') as f:
+                    pkl.dump(dict_to_save, f)
+
             lock.release_write()
 
             epoch_perc = (it % self.num_iters_per_epoch) / self.num_iters_per_epoch if self.num_iters_per_epoch else None
@@ -1812,7 +1834,8 @@ class Monitor:
         self.num_iters_per_epoch = self._num_iters_per_epoch
         self._init_time = time.time()
 
-    def read_log(self):
+    @staticmethod
+    def read_log(path_to_file):
         """
         reads the saved log file.
 
@@ -1820,7 +1843,7 @@ class Monitor:
             contents of the log file.
         """
 
-        with open(os.path.join(self.current_folder, 'files', self._log_file), 'rb') as f:
+        with open(path_to_file, 'rb') as f:
             f.seek(0)
             try:
                 contents = pkl.load(f)
