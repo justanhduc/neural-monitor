@@ -435,6 +435,7 @@ class Monitor:
             prefix: Optional[str] = None,
             use_tensorboard: Optional[bool] = True,
             with_git: Optional[bool] = False,
+            load_stats: Optional[bool] = True,
             not_found_warn: bool = True
     ) -> None:
         """
@@ -475,6 +476,9 @@ class Monitor:
             whether to retrieve some Git information.
             Should be used only when the project is initialized with Git.
             Default: ``False``.
+        :param load_stats:
+            whether to load previously saved statistics.
+            Default: ``True``.
         :param not_found_warn:
             whether to warn when some statistics are missing from saved checkpoint.
             Default: ``True``.
@@ -517,7 +521,7 @@ class Monitor:
         else:
             self.current_folder = current_folder
 
-        if os.path.exists(self.current_folder):
+        if load_stats and os.path.exists(self.current_folder):
             lock.acquire_read()
             self.load_state(not_found_warn=not_found_warn)
             lock.release_read()
