@@ -1396,7 +1396,7 @@ class Monitor:
                     plt.ylim(interval)
 
             if display:
-                prints.append(f"{name}\t{np.mean(np.array(list(val.values())), 0):.{prec}f}")
+                prints.append(f"{name}: {np.mean(np.array(list(val.values())), 0):.{prec}f}")
 
             fig.savefig(os.path.join(self.plot_folder, name.replace(' ', '_') + '.jpg'))
             fig.clear()
@@ -1584,7 +1584,7 @@ class Monitor:
 
             elapsed_time, elapsed_time_unit = _convert_time_human_readable(elapsed_time)
             elapsed_time_str = f'{elapsed_time:.2f}{elapsed_time_unit}'
-            log = f'{self.current_run}\t Elapsed time {elapsed_time_str} ({eta_str})\t{iter_show}\t' + '\t'.join(prints)
+            log = f'{self.current_run} | Elapsed time {elapsed_time_str} ({eta_str}) | {iter_show} | ' + ' | '.join(prints)
             log += '\n'
             root_logger.info(log)
             self._q.task_done()
