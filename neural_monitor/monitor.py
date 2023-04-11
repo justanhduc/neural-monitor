@@ -1533,21 +1533,20 @@ class Monitor:
             it, epoch, nums, mats, imgs, hists, points = items
             prints = []
 
-            with plt.xkcd():
-                # plot statistics
-                self._plot(nums, prints)
+            # plot statistics
+            self._plot(nums, prints)
 
-                # plot confusion matrix
-                self._plot_matrix(mats)
+            # plot confusion matrix
+            self._plot_matrix(mats)
 
-                # save recorded images
-                self._imwrite(imgs)
+            # save recorded images
+            self._imwrite(imgs)
 
-                # make histograms of recorded data
-                self._hist(hists)
+            # make histograms of recorded data
+            self._hist(hists)
 
-                # scatter point set(s)
-                self._scatter(points)
+            # scatter point set(s)
+            self._scatter(points)
 
             lock.acquire_write()
             with open(os.path.join(self.file_folder, self._log_file), 'wb') as f:
