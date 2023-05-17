@@ -1650,22 +1650,29 @@ class Monitor:
         fieldnames.insert(0, location)
         kwargs[location] = self.current_folder
 
-        # Read or write header
-        try:
-            with open(fname, 'r') as f:
-                reader = csv.reader(f, delimiter='\t')
-                header = next(reader)  # noqa  # this line is testing the header
-                # assert header == fieldnames[:len(header)]  # new columns are ok, but old columns need to be consistent
-                # dont test, always write when in doubt to prevent erroneous table rewrites
-        except Exception as e:  # noqa
-            with open(fname, 'w') as f:
-                writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
-                writer.writeheader()
+        # if headers dont match, read in data of old headers and make a list of dicts
+        dicts = []
+        write_mode = 'w'
+        if os.path.exists(fname):
+            write_mode = 'a'
+            with open(fname, 'r') as f:  # noqa  # this line is testing the header
+                reader = csv.DictReader(f)
+                if reader.fieldnames != fieldnames:
+                    write_mode = 'w'
+                    dicts = list(reader)
+                    all_fieldnames = set().union(*dicts)
+                    all_fieldnames.update(fieldnames)
 
         # Add row for this experiment
-        with open(fname, 'a') as f:
-            writer = csv.DictWriter(f, delimiter='\t', fieldnames=fieldnames)
-            writer.writerow(kwargs)
+        dicts.append(kwargs)
+        with open(fname, write_mode) as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            if write_mode == 'w':
+                writer.writeheader()
+
+            for d in dicts:
+                row = {key: d.get(key, None) for key in fieldnames}
+                writer.writerow(row)
 
     @distributed_flush
     @check_path_init
