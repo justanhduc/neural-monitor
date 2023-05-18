@@ -15,7 +15,7 @@ import logging
 from matplotlib import cm
 from imageio import imwrite
 from shutil import copyfile
-from collections import namedtuple, deque
+from collections import namedtuple, deque, OrderedDict
 import functools
 import torch.distributed
 from typing import (
@@ -1660,8 +1660,8 @@ class Monitor:
                 if reader.fieldnames != fieldnames:
                     write_mode = 'w'
                     dicts = list(reader)
-                    all_fieldnames = set().union(*dicts)
-                    all_fieldnames.update(fieldnames)
+                    all_fieldnames = list(OrderedDict.fromkeys(key for dictionary in dicts for key in dictionary))
+                    all_fieldnames += [fn for fn in fieldnames if fn not in all_fieldnames]
                     fieldnames = all_fieldnames
 
         # Add row for this experiment
