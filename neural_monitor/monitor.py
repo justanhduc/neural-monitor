@@ -1662,6 +1662,7 @@ class Monitor:
                     dicts = list(reader)
                     all_fieldnames = set().union(*dicts)
                     all_fieldnames.update(fieldnames)
+                    fieldnames = all_fieldnames
 
         # Add row for this experiment
         dicts.append(kwargs)
