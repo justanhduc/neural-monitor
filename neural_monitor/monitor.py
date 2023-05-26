@@ -1629,20 +1629,22 @@ class Monitor:
             pkl.dump(self._dump_files, f, pkl.HIGHEST_PROTOCOL)
         return versioned_filename
 
-    def save_to_table(self, table_name: str, **kwargs: Any):
+    def save_to_table(self, table_name: str, root: str = None, **kwargs: Any):
         """
         writes summary into a csv table.
         Adapted from https://github.com/JonasGeiping/fullbatchtraining.
 
         :param table_name:
             name for the summary table.
+        :param root:
+            root folder to save the table in.
         :param kwargs:
             fields to write into the table
         """
         import csv
 
         # Check for file
-        fname = os.path.join(self.root, f'table_{table_name}.csv')
+        fname = os.path.join(root if root is not None else self.root, f'table_{table_name}.csv')
         fieldnames = list(kwargs.keys())
 
         # ensure location is the first column
