@@ -217,6 +217,9 @@ def distributed_collect(f):
             T.distributed.all_gather(tensor_list, value)
             value = tensor_list
 
+        if self.rank != 0:
+            return
+
         return f(self, name, value, *args, **kwargs)
 
     return func
