@@ -552,6 +552,8 @@ class Monitor:
         self._initialized = True
         self._init_time = time.time()
         self._start_epoch = self.epoch
+        if self.num_iters_per_epoch:
+            self.iter = self.epoch * self.num_iters_per_epoch
 
         if self.use_tensorboard:
             self.init_tensorboard()
@@ -704,16 +706,8 @@ class Monitor:
         --------
         iter_batch
         """
-
-        if self.num_iters_per_epoch:
-            self.iter = self.epoch * self.num_iters_per_epoch
-
-        for item in iterator:
-            if self.epoch > 0 and self.num_iters_per_epoch is None:
-                self.num_iters_per_epoch = self.iter // self.epoch
-
-            yield item
-            self.epoch += 1
+        logger.info('iter_epoch is deprecated. Use only iter_batch.')
+        return iterator
 
     def iter_batch(self, iterator: Iterable) -> Any:
         """
@@ -732,7 +726,7 @@ class Monitor:
         >>> mon.print_freq = 1000
         >>> data_loader = ...
         >>> num_epochs = 10
-        >>> for epoch in mon.iter_epoch(range(num_epochs)):
+        >>> for epoch in range(num_epochs):
         ...     for idx, data in mon.iter_batch(enumerate(data_loader)):
         ...         # do something here
 
@@ -740,6 +734,8 @@ class Monitor:
         --------
         iter_epoch
         """
+        if self.epoch > 0 and self.num_iters_per_epoch is None:
+            self.num_iters_per_epoch = self.iter // self.epoch
 
         for item in iterator:
             yield item
@@ -750,6 +746,8 @@ class Monitor:
             self.iter += self.iter_step
             if self.distributed:
                 T.distributed.barrier()
+
+        self.epoch += 1
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.print_freq:
