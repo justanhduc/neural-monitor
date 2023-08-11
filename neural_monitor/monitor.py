@@ -210,7 +210,8 @@ def standardize_name(f):
 def distributed_collect(f):
     @functools.wraps(f)
     def func(self, name: str, value: T.Tensor, *args, **kwargs):
-        if self.distributed:
+        rank_zero_only = kwargs.get('rank_zero_only')
+        if self.distributed and not rank_zero_only:
             assert isinstance(value, T.Tensor), 'value must be a Tensor in distributed mode'
             tensor_list = [torch.zeros_like(value) for _ in range(self.world_size)]
             T.distributed.all_gather(tensor_list, value)
@@ -1077,7 +1078,7 @@ class Monitor:
 
     @distributed_collect
     @standardize_name
-    def add_hparam(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
+    def add_hparam(self, name: str, value: Union[T.Tensor, np.ndarray, float], rank_zero_only: bool = False):
         if name not in self._options[self._hparams].keys():
             value = reduce_one(value)
             if isinstance(value, (list, tuple)):  # in distributed mode
@@ -1089,7 +1090,7 @@ class Monitor:
 
     @distributed_collect
     @standardize_name
-    def add_metric(self, name: str, value: Union[T.Tensor, np.ndarray, float]):
+    def add_metric(self, name: str, value: Union[T.Tensor, np.ndarray, float], rank_zero_only: bool = False):
         if name not in self._options[self._hparam_metrics].keys():
             value = reduce_one(value)
             if isinstance(value, (list, tuple)):  # in distributed mode
@@ -1108,6 +1109,7 @@ class Monitor:
              filter_outliers: Optional[bool] = True,
              precision: Optional[int] = 5,
              display: Optional[bool] = True,
+             rank_zero_only: bool = False,
              **kwargs):
         """
         schedules a plot of scalar value.
@@ -1160,7 +1162,8 @@ class Monitor:
     @distributed_collect
     @standardize_name
     def plot_matrix(self, name: str, value: Union[T.Tensor, np.ndarray, float],
-                    labels: Union[List[str], List[List[str]]] = None, show_values: bool = False):
+                    labels: Union[List[str], List[List[str]]] = None, show_values: bool = False,
+                    rank_zero_only: bool = False):
         """
         plots the given matrix with colorbar and labels if provided.
 
@@ -1191,7 +1194,7 @@ class Monitor:
     @standardize_name
     def scatter(self, name: str,
                 value: Union[T.Tensor, np.ndarray, List[T.Tensor], List[np.ndarray]],
-                latest_only: bool = False,
+                latest_only: bool = False, rank_zero_only: bool = False,
                 **kwargs):
         """
         schedules a scattor plot of (a batch of) points.
@@ -1225,7 +1228,8 @@ class Monitor:
 
     @distributed_collect
     @standardize_name
-    def imwrite(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: Optional[bool] = False, **kwargs):
+    def imwrite(self, name: str, value: Union[T.Tensor, np.ndarray], latest_only: Optional[bool] = False,
+                rank_zero_only: bool = False, **kwargs):
         """
         schedules to save images.
         The images will be rendered and saved every :attr:`~print_freq` iterations.
@@ -1261,7 +1265,8 @@ class Monitor:
 
     @distributed_collect
     @standardize_name
-    def hist(self, name, value: Union[T.Tensor, np.ndarray], n_bins: int = 20, latest_only: bool = False, **kwargs):
+    def hist(self, name, value: Union[T.Tensor, np.ndarray], n_bins: int = 20, latest_only: bool = False,
+             rank_zero_only: bool = False, **kwargs):
         """
         schedules a histogram plot of (a batch of) points.
         A :mod:`matplotlib` figure will be rendered and saved every :attr:`~print_freq` iterations.
