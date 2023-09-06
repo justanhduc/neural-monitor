@@ -4,7 +4,7 @@ import threading
 import numpy as np
 from collections import defaultdict, OrderedDict
 
-log_formatter = logging.Formatter('%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s')
+log_formatter = logging.Formatter('%(asctime)s %(message)s')
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
 
