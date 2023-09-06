@@ -41,7 +41,7 @@ except ImportError:  # for Pytorch earlier than 1.1.0
     from tensorboardX import SummaryWriter
 
 from . import utils
-from .utils import root_logger, log_formatter
+from .utils import root_logger, log_formatter, Collector
 
 matplotlib.use('Agg')
 __all__ = ['monitor', 'logger', 'track', 'collect_tracked_variables', 'get_tracked_variables', 'hooks']
@@ -177,10 +177,6 @@ def get_tracked_variables():
         else:
             dict[n] = v
     return dict
-
-
-def _spawn_defaultdict_ordereddict():
-    return collections.OrderedDict()
 
 
 def check_path_init(f):
@@ -390,21 +386,13 @@ class Monitor:
 
         self._iter = 0
         self._last_epoch = 0
-        self._num_since_beginning = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._num_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._hist_since_beginning = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._hist_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._mat_since_last_flush = {}
-        self._img_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._points_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._options = collections.defaultdict(_spawn_defaultdict_ordereddict)
+        self._num = Collector()
+        self._hist = Collector()
+        self._img = Collector()
+        self._points = Collector()
+        self._mat = {}
+        self._options = collections.defaultdict(collections.OrderedDict)
         self._dump_files = collections.OrderedDict()
-        self._schedule = {
-            self._begin_epoch_: collections.defaultdict(_spawn_defaultdict_ordereddict),
-            self._end_epoch_: collections.defaultdict(_spawn_defaultdict_ordereddict),
-            self._begin_iter_: collections.defaultdict(_spawn_defaultdict_ordereddict),
-            self._end_iter_: collections.defaultdict(_spawn_defaultdict_ordereddict)
-        }
         self._init_time = None
         self._start_epoch = None
         self._io_method = {'pickle_save': self._save_pickle, 'txt_save': self._save_txt,
@@ -569,8 +557,8 @@ class Monitor:
             'iter': self.iter,
             'epoch': self.epoch,
             'num_iters': self.num_iters_per_epoch,
-            'num': list(self._num_since_beginning.keys()),
-            'hist': list(self._hist_since_beginning.keys()),
+            'num': list(self._num.since_beginning.keys()),
+            'hist': list(self._hist.since_beginning.keys()),
             'options': self._options.copy()
         }
         return state_dict
@@ -582,7 +570,7 @@ class Monitor:
             elif isinstance(state_dict['num'], list):
                 for key in state_dict['num']:
                     saved_dict = self.read_log(os.path.join(self.current_folder, 'files', f'num_{key}.pkl'))
-                    self._num_since_beginning[key] = saved_dict
+                    self._num.since_beginning[key] = saved_dict
 
         except KeyError:
             if not_found_warn:
@@ -594,7 +582,7 @@ class Monitor:
             elif isinstance(state_dict['hist'], list):
                 for key in state_dict['hist']:
                     saved_dict = self.read_log(os.path.join(self.current_folder, 'files', f'hist_{key}.pkl'))
-                    self._hist_since_beginning[key] = saved_dict
+                    self._hist.since_beginning[key] = saved_dict
 
         except KeyError:
             if not_found_warn:
@@ -873,18 +861,18 @@ class Monitor:
         returns the collected scalar statistics from beginning.
 
         :return:
-            :attr:`~_num_since_beginning`.
+            :attr:`~_num.since_beginning`.
         """
 
-        return dict(self._num_since_beginning)
+        return dict(self._num.since_beginning)
 
     @num_stats.setter
     def num_stats(self, stats_dict: Dict):
-        self._num_since_beginning.update(stats_dict)
+        self._num.since_beginning.update(stats_dict)
 
     @num_stats.deleter
     def num_stats(self):
-        self._num_since_beginning.clear()
+        self._num.since_beginning.clear()
 
     def clear_num_stats(self, key):
         """
@@ -895,7 +883,7 @@ class Monitor:
         :return: ``None``.
         """
 
-        self._num_since_beginning[key].clear()
+        self._num.since_beginning[key].clear()
 
     @property
     def hist_stats(self):
@@ -903,18 +891,18 @@ class Monitor:
         returns the collected tensors from beginning.
 
         :return:
-            :attr:`~_hist_since_beginning`.
+            :attr:`~_hist.since_beginning`.
         """
 
-        return dict(self._hist_since_beginning)
+        return dict(self._hist.since_beginning)
 
     @hist_stats.setter
     def hist_stats(self, stats_dict: Dict):
-        self._hist_since_beginning.update(stats_dict)
+        self._hist.since_beginning.update(stats_dict)
 
     @hist_stats.deleter
     def hist_stats(self):
-        self._hist_since_beginning.clear()
+        self._hist.since_beginning.clear()
 
     def clear_hist_stats(self, key: Union[int, str, Tuple]):
         """
@@ -925,7 +913,7 @@ class Monitor:
         :return: ``None``.
         """
 
-        self._hist_since_beginning[key].clear()
+        self._hist.since_beginning[key].clear()
 
     @property
     def options(self):
@@ -1150,7 +1138,7 @@ class Monitor:
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
-        self._num_since_last_flush[name][self.iter] = value
+        self._num.since_last_flush[name][self.iter] = value
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'scalar/')
             self.writer.add_scalar(prefix + name.replace(' ', '-'), value, global_step=self.iter, **kwargs)
@@ -1191,7 +1179,7 @@ class Monitor:
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
-        self._mat_since_last_flush[name] = np.array(value)
+        self._mat[name] = np.array(value)
 
     @distributed_collect
     @standardize_name
@@ -1225,7 +1213,7 @@ class Monitor:
             if len(value.shape) == 2:
                 value = value[None]
 
-        self._points_since_last_flush[name][self.iter] = value
+        self._points.since_last_flush[name][self.iter] = value
         if self.writer is not None:
             self.writer.add_mesh(name, value, global_step=self.iter, **kwargs)
 
@@ -1260,7 +1248,7 @@ class Monitor:
 
         self._options[name]['latest_only'] = latest_only
         value = standardize_image(reduce_cat(value))
-        self._img_since_last_flush[name][self.iter] = value
+        self._img.since_last_flush[name][self.iter] = value
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'image/')
             self.writer.add_images(prefix + name.replace(' ', '-'), value,
@@ -1293,7 +1281,7 @@ class Monitor:
         if isinstance(value, T.Tensor):
             value = utils.to_numpy(value)
 
-        self._hist_since_last_flush[name][self.iter] = value
+        self._hist.since_last_flush[name][self.iter] = value
         if self.writer is not None:
             prefix = kwargs.pop('prefix', 'hist/')
             self.writer.add_histogram(prefix + name.replace(' ', '-'), value, global_step=self.iter, **kwargs)
@@ -1381,10 +1369,10 @@ class Monitor:
             summary = summary.join(tmp, how='outer')
 
             # plot
-            self._num_since_beginning[name].update(val)
+            self._num.since_beginning[name].update(val)
             plt.ylabel(name)
-            x_vals = sorted(self._num_since_beginning[name].keys())
-            y_vals = [self._num_since_beginning[name][x] for x in x_vals]
+            x_vals = sorted(self._num.since_beginning[name].keys())
+            y_vals = [self._num.since_beginning[name][x] for x in x_vals]
             max_, min_, med_, mean_ = np.max(y_vals), np.min(y_vals), np.median(y_vals), np.mean(y_vals)
             argmax_, argmin_ = np.argmax(y_vals), np.argmin(y_vals)
             plt.title('max: {:.8f} at iter {} min: {:.8f} at iter {} \nmedian: {:.8f} mean: {:.8f}'
@@ -1495,10 +1483,10 @@ class Monitor:
                 k = max(list(val.keys()))
                 plt.hist(np.array(val[k]).flatten(), bins='auto')
             else:
-                self._hist_since_beginning[name].update(val)
+                self._hist.since_beginning[name].update(val)
 
-                z_vals = np.array(list(self._hist_since_beginning[name].keys()))
-                vals = [np.array(self._hist_since_beginning[name][i]).flatten() for i in z_vals]
+                z_vals = np.array(list(self._hist.since_beginning[name].keys()))
+                vals = [np.array(self._hist.since_beginning[name][i]).flatten() for i in z_vals]
                 hists = [np.histogram(v, bins=n_bins) for v in vals]
                 y_vals = np.array([hists[i][0] for i in range(len(hists))])
                 x_vals = np.array([hists[i][1] for i in range(len(hists))])
@@ -1562,12 +1550,12 @@ class Monitor:
                 pkl.dump(state_dict, f, pkl.HIGHEST_PROTOCOL)
 
             for name in nums:  # save only dicts that have updates
-                dict_to_save = self._num_since_beginning[name]
+                dict_to_save = self._num.since_beginning[name]
                 with open(os.path.join(self.file_folder, f'num_{name}.pkl'), 'wb') as f:
                     pkl.dump(dict_to_save, f)
 
             for name in hists:
-                dict_to_save = self._hist_since_beginning[name]
+                dict_to_save = self._hist.since_beginning[name]
                 with open(os.path.join(self.file_folder, f'hist_{name}.pkl'), 'wb') as f:
                     pkl.dump(dict_to_save, f)
 
@@ -1604,14 +1592,14 @@ class Monitor:
         :return: ``None``.
         """
 
-        self._q.put((self.iter, self.epoch, self._num_since_last_flush.copy(), self._mat_since_last_flush.copy(),
-                     self._img_since_last_flush.copy(), self._hist_since_last_flush.copy(),
-                     self._points_since_last_flush.copy()))
-        self._num_since_last_flush.clear()
-        self._mat_since_last_flush.clear()
-        self._img_since_last_flush.clear()
-        self._hist_since_last_flush.clear()
-        self._points_since_last_flush.clear()
+        self._q.put((self.iter, self.epoch, self._num.since_last_flush.copy(), self._mat.copy(),
+                     self._img.since_last_flush.copy(), self._hist.since_last_flush.copy(),
+                     self._points.since_last_flush.copy()))
+        self._mat.clear()
+        self._num.clear_last()
+        self._img.clear_last()
+        self._hist.clear_last()
+        self._points.clear_last()
 
     def _version(self, file, keep):
         name, ext = os.path.splitext(file)
@@ -1842,11 +1830,11 @@ class Monitor:
         del self.num_stats
         del self.hist_stats
         del self.options
-        self._num_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._mat_since_last_flush = {}
-        self._img_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._hist_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
-        self._points_since_last_flush = collections.defaultdict(_spawn_defaultdict_ordereddict)
+        self._mat = {}
+        self._num.reset()
+        self._hist.reset()
+        self._img.reset()
+        self._points.reset()
         self._dump_files = collections.OrderedDict()
         self._iter = 0
         self._last_epoch = 0

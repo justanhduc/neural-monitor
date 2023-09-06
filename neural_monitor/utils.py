@@ -2,10 +2,23 @@ import torch as T
 import logging
 import threading
 import numpy as np
+from collections import defaultdict, OrderedDict
 
 log_formatter = logging.Formatter('%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s')
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
+
+
+class Collector:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.since_beginning = defaultdict(OrderedDict)
+        self.since_last_flush = defaultdict(OrderedDict)
+
+    def clear_last(self):
+        self.since_last_flush.clear()
 
 
 class ReadWriteLock:
