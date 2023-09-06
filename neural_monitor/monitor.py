@@ -1474,7 +1474,7 @@ class Monitor:
                 else:
                     raise NotImplementedError
 
-    def _hist(self, nums):
+    def _histogram(self, nums):
         fig = plt.figure()
         for name, val in nums.items():
             n_bins = self._options[name].get('n_bins')
@@ -1537,7 +1537,7 @@ class Monitor:
             self._imwrite(imgs)
 
             # make histograms of recorded data
-            self._hist(hists)
+            self._histogram(hists)
 
             # scatter point set(s)
             self._scatter(points)
